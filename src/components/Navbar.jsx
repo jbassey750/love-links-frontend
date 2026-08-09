@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { NotificationContext } from "../context/NotificationContext";
 
 // Configuration for route-specific titles, badges, and contextual indicators
 const PAGE_CONFIG = {
@@ -59,8 +60,10 @@ const PAGE_CONFIG = {
   },
 };
 
-const Navbar = ({ location = "Amsterdam", hasUnreadNotifications = true }) => {
+const Navbar = ({ location = "Amsterdam" }) => {
   const currentPath = useLocation().pathname;
+  const { unreadCount } = useContext(NotificationContext);
+  const hasUnreadNotifications = unreadCount > 0;
 
   // Fall back to default config if route is unlisted
   const activeConfig = PAGE_CONFIG[currentPath] || {
@@ -167,18 +170,20 @@ const Navbar = ({ location = "Amsterdam", hasUnreadNotifications = true }) => {
             title="Notifications"
           >
             <i className="bi bi-bell fs-6"></i>
-            {/* Status Dot */}
             {hasUnreadNotifications && (
               <span
-                className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
+                className="position-absolute top-0 start-100 translate-middle d-flex align-items-center justify-content-center rounded-pill text-white"
                 style={{
-                  width: "8px",
-                  height: "8px",
-                  marginTop: "4px",
-                  marginLeft: "-4px",
+                  minWidth: "20px",
+                  height: "20px",
+                  padding: "0 6px",
+                  fontSize: "0.65rem",
+                  backgroundColor: "#d6333f",
+                  transform: "translate(30%, -30%)",
                 }}
               >
-                <span className="visually-hidden">New notifications</span>
+                {unreadCount > 99 ? "99+" : unreadCount}
+                <span className="visually-hidden">Unread notifications</span>
               </span>
             )}
           </Link>

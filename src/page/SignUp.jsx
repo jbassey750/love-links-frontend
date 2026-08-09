@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axios";
 
 const INTEREST_PRESETS = [
   "Coffee",
@@ -61,16 +62,29 @@ const BADGE_OPTIONS = [
 ];
 
 const GENDER_OPTIONS = [
-  "Woman",
-  "Man",
-  "Non-binary",
-  "Agender",
-  "Bigender",
-  "Genderfluid",
-  "Genderqueer",
-  "Transgender",
-  "Prefer not to say",
-  "Other",
+  "female",
+  "male",
+  "non-binary",
+  "agender",
+  "bigender",
+  "genderfluid",
+  "genderqueer",
+  "transgender",
+  "prefer not to say",
+  "other",
+];
+
+const LOOKING_FOR_OPTIONS = [
+  "female",
+  "male",
+  "non-binary",
+  "agender",
+  "bigender",
+  "genderfluid",
+  "genderqueer",
+  "transgender",
+  "prefer not to say",
+  "other",
 ];
 
 const SignUpFlow = ({ onComplete }) => {
@@ -86,53 +100,116 @@ const SignUpFlow = ({ onComplete }) => {
     phone: "",
     gender: "",
     age: "",
-    location: "",
+    state: "",
+    region: "",
     photo: null,
     photoPreview: null,
     bio: "",
     interests: [],
     badge: "Love & Friends",
+    lookingFor: "",
   });
 
   const [customInterest, setCustomInterest] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const navigate = useNavigate();
 
   // Navigation validation
   const validateStep = () => {
     const newErrors = {};
     if (step === 1) {
-      if (!formData.username.trim()) newErrors.username = "Username is required";
-      if (!formData.email) newErrors.email = "Email is required";
+      if (!formData.username.trim())
+        newErrors.username = "Username is required!";
+      if (!formData.email) newErrors.email = "Email is required!";
       else if (!/\S+@\S+\.\S+/.test(formData.email))
-        newErrors.email = "Invalid email format";
-      if (!formData.password) newErrors.password = "Password is required";
+        newErrors.email = "Invalid email format!";
+      if (!formData.password) newErrors.password = "Password is required!";
       else if (formData.password.length < 6)
-        newErrors.password = "Password must be at least 6 characters";
+        newErrors.password = "Password must be at least 6 characters!";
     } else if (step === 2) {
       if (!formData.fullName.trim())
-        newErrors.fullName = "Full name is required";
-      if (!formData.phone.trim())
-        newErrors.phone = "Phone number is required";
+        newErrors.fullName = "Full name is required!";
+      if (!formData.phone.trim()) newErrors.phone = "Phone number is required!";
       if (!formData.gender)
-        newErrors.gender = "Please select a gender identity";
-      if (!formData.age) newErrors.age = "Age is required";
+        newErrors.gender = "Please select a gender identity!";
+      if (!formData.age) newErrors.age = "Age is required!";
       else if (Number(formData.age) < 18 || Number(formData.age) > 99)
-        newErrors.age = "Age must be between 18 and 99";
-      if (!formData.location.trim())
-        newErrors.location = "Location is required";
+        newErrors.age = "Age must be between 18 and 99!";
+      if (!formData.state.trim())
+        newErrors.state = "State is required!";
+      if (!formData.region.trim())
+        newErrors.region = "Region is required!";
     } else if (step === 3) {
       if (formData.bio.length < 20)
-        newErrors.bio = "Bio must be at least 20 characters";
+        newErrors.bio = "Bio must be at least 20 characters!";
+    } else if (step === 6) {
+      if (!formData.lookingFor)
+        newErrors.lookingFor = "Please select who you are looking for!";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const submitSignUp = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const data = new FormData();
+      data.append("username", formData.username);
+      data.append("email", formData.email);
+      data.append("password", formData.password);
+      data.append("fullName", formData.fullName);
+      data.append("phone", formData.phone);
+      data.append("gender", formData.gender);
+      data.append("age", formData.age);
+      data.append("bio", formData.bio);
+      data.append("badge", formData.badge);
+      data.append("lookingFor", formData.lookingFor);
+      data.append("state", formData.state);
+      data.append("region", formData.region);
+      data.append("interests", JSON.stringify(formData.interests));
+
+      if (formData.photo) {
+        data.append("photo", formData.photo);
+      }
+
+      const response = await api.post("/auth/signup", data);
+      
+
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+      setSuccessMessage("Account created successfully.");
+      setApiError("");
+
+      if (onComplete) {
+        onComplete(response.data);
+      }
+
+      setTimeout(() => {
+        navigate("/");
+      }, 1200);
+    } catch (err) {
+      setApiError(
+        err.response?.data?.message || "An error occurred during signup!",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNext = () => {
     if (validateStep()) {
-      if (step < 5) setStep(step + 1);
-      else if (onComplete) onComplete(formData);
+      if (step < 6) {
+        setStep(step + 1);
+      } else {
+        submitSignUp();
+      }
     }
   };
 
@@ -195,6 +272,8 @@ const SignUpFlow = ({ onComplete }) => {
         return "Interests";
       case 5:
         return "Badge";
+      case 6:
+        return "Looking For";
       default:
         return "";
     }
@@ -215,27 +294,34 @@ const SignUpFlow = ({ onComplete }) => {
           style={{ backgroundColor: "#fbf6f0" }}
         >
           <div className="d-flex align-items-center gap-3">
-            <button
-              onClick={handleBack}
-              disabled={step === 1}
-              className={`btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle`}
-              style={{
-                width: "28px",
-                height: "28px",
-                backgroundColor:
-                  step === 1 ? "transparent" : "rgba(0,0,0,0.04)",
-              }}
-            >
+            {step === 1 ? (
               <Link
                 to="/"
-                className="text-decoration-none text-dark"
+                className={`btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle`}
+                style={{ width: "28px", height: "28px" }}
               >
                 <i
                   className="bi bi-chevron-left"
                   style={{ fontSize: "0.9rem" }}
                 ></i>
               </Link>
-            </button>
+            ) : (
+              <button
+                onClick={handleBack}
+                disabled={loading}
+                className={`btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle`}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  backgroundColor: "rgba(0,0,0,0.04)",
+                }}
+              >
+                <i
+                  className="bi bi-chevron-left"
+                  style={{ fontSize: "0.9rem" }}
+                ></i>
+              </button>
+            )}
             <span
               className="text-uppercase tracking-wider fw-bold text-danger"
               style={{
@@ -244,7 +330,7 @@ const SignUpFlow = ({ onComplete }) => {
                 letterSpacing: "1px",
               }}
             >
-              Step {step} of 5
+              Step {step} of 6
             </span>
           </div>
           <span className="text-muted" style={{ fontSize: "0.8rem" }}>
@@ -257,7 +343,7 @@ const SignUpFlow = ({ onComplete }) => {
           <div
             className="h-100 transition-all duration-300"
             style={{
-              width: `${(step / 5) * 100}%`,
+              width: `${(step / 6) * 100}%`,
               backgroundColor: "#73112d",
               transition: "width 0.3s ease-in-out",
             }}
@@ -270,6 +356,17 @@ const SignUpFlow = ({ onComplete }) => {
         className="flex-grow-1 px-4 py-5 mx-auto w-100"
         style={{ maxWidth: "1000px" }}
       >
+        {successMessage && (
+          <div className="alert alert-success text-center mb-4" role="alert">
+            {successMessage}
+          </div>
+        )}
+        {apiError && (
+          <div className="alert alert-danger text-center mb-4" role="alert">
+            {apiError}
+          </div>
+        )}
+
         {/* STEP 1: Account credentials */}
         {step === 1 && (
           <div>
@@ -428,11 +525,21 @@ const SignUpFlow = ({ onComplete }) => {
                   value={formData.gender}
                   onChange={(e) => updateField("gender", e.target.value)}
                   className={`form-select border-0 rounded-3 px-3 py-2.5 shadow-none ${errors.gender ? "is-invalid" : ""}`}
-                  style={{ backgroundColor: "#efeae4", fontSize: "0.9rem", color: formData.gender ? "#212529" : "#6c757d" }}
+                  style={{
+                    backgroundColor: "#efeae4",
+                    fontSize: "0.9rem",
+                    color: formData.gender ? "#212529" : "#6c757d",
+                  }}
                 >
-                  <option value="" disabled>Select gender identity</option>
+                  <option value="" disabled>
+                    Select gender identity
+                  </option>
                   {GENDER_OPTIONS.map((option) => (
-                    <option key={option} value={option} style={{ color: "#212529" }}>
+                    <option
+                      key={option}
+                      value={option}
+                      style={{ color: "#212529" }}
+                    >
                       {option}
                     </option>
                   ))}
@@ -467,20 +574,49 @@ const SignUpFlow = ({ onComplete }) => {
                   className="text-uppercase text-muted fw-bold d-block mb-2"
                   style={{ fontSize: "0.65rem", letterSpacing: "1px" }}
                 >
-                  Location
+                  State
                 </label>
                 <input
                   type="text"
-                  value={formData.location}
-                  onChange={(e) => updateField("location", e.target.value)}
-                  placeholder="Amsterdam"
-                  className={`form-control border-0 rounded-3 px-3 py-2.5 shadow-none ${errors.location ? "is-invalid" : ""}`}
+                  value={formData.state}
+                  onChange={(e) => updateField("state", e.target.value)}
+                  placeholder="California"
+                  className={`form-control border-0 rounded-3 px-3 py-2.5 shadow-none ${errors.state ? "is-invalid" : ""}`}
                   style={{ backgroundColor: "#efeae4", fontSize: "0.9rem" }}
                 />
-                {errors.location && (
-                  <div className="invalid-feedback">{errors.location}</div>
+                {errors.state && (
+                  <div className="invalid-feedback">{errors.state}</div>
                 )}
               </div>
+
+              <div>
+                <label
+                  className="text-uppercase text-muted fw-bold d-block mb-2"
+                  style={{ fontSize: "0.65rem", letterSpacing: "1px" }}
+                >
+                  Region
+                </label>
+                <input
+                  type="text"
+                  value={formData.region}
+                  onChange={(e) => updateField("region", e.target.value)}
+                  placeholder="Bay Area"
+                  className={`form-control border-0 rounded-3 px-3 py-2.5 shadow-none ${errors.region ? "is-invalid" : ""}`}
+                  style={{ backgroundColor: "#efeae4", fontSize: "0.9rem" }}
+                />
+                {errors.region && (
+                  <div className="invalid-feedback">{errors.region}</div>
+                )}
+              </div>
+
+              
+              
+              
+              
+              
+              
+              
+    
             </div>
           </div>
         )}
@@ -546,7 +682,13 @@ const SignUpFlow = ({ onComplete }) => {
                 {formData.photoPreview && (
                   <button
                     type="button"
-                    onClick={() => updateField("photoPreview", null)}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        photo: null,
+                        photoPreview: null,
+                      }))
+                    }
                     className="btn btn-sm bg-danger rounded-circle text-white position-absolute shadow-sm d-flex align-items-center justify-content-center"
                     style={{
                       top: "-6px",
@@ -741,6 +883,48 @@ const SignUpFlow = ({ onComplete }) => {
             </div>
           </div>
         )}
+
+        {/* STEP 6: Looking For Options (Single box selection) */}
+        {step === 6 && (
+          <div>
+            <h2
+              className="fs-3 fw-bold mb-1 text-dark"
+              style={{ fontFamily: "Georgia, serif" }}
+            >
+              Who are you looking for?
+            </h2>
+            <p className="text-muted mb-4" style={{ fontSize: "0.85rem" }}>
+              Select the option that best describes who you'd like to connect with.
+            </p>
+
+            <div className="d-flex flex-wrap gap-2 mb-3">
+              {LOOKING_FOR_OPTIONS.map((option) => {
+                const isSelected = formData.lookingFor === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => updateField("lookingFor", option)}
+                    className="btn px-3 py-2 rounded-pill border fw-normal transition-all"
+                    style={{
+                      fontSize: "0.85rem",
+                      backgroundColor: isSelected ? "#73112d" : "#efeae4",
+                      color: isSelected ? "#fff" : "#495057",
+                      borderColor: isSelected ? "#73112d" : "rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+            {errors.lookingFor && (
+              <div className="text-danger mt-1" style={{ fontSize: "0.8rem" }}>
+                {errors.lookingFor}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Persistent Base Action Buttons Footer Panel */}
@@ -752,18 +936,29 @@ const SignUpFlow = ({ onComplete }) => {
           <button
             type="button"
             onClick={handleNext}
+            disabled={loading}
             className="btn w-100 rounded-3 py-2.5 border-0 text-white fw-semibold d-flex align-items-center justify-content-center gap-2"
             style={{
               backgroundColor: "#73112d",
               fontSize: "0.9rem",
             }}
           >
-            <span>{step === 5 ? "Create my profile" : "Continue"}</span>
-            {step < 5 && (
-              <i
-                className="bi bi-arrow-right"
-                style={{ fontSize: "0.85rem" }}
-              ></i>
+            {loading ? (
+              <span
+                className="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+              ></span>
+            ) : (
+              <>
+                <span>{step === 6 ? "Create my profile" : "Continue"}</span>
+                {step < 6 && (
+                  <i
+                    className="bi bi-arrow-right"
+                    style={{ fontSize: "0.85rem" }}
+                  ></i>
+                )}
+              </>
             )}
           </button>
 
@@ -777,7 +972,10 @@ const SignUpFlow = ({ onComplete }) => {
                 className="text-decoration-underline cursor-pointer fw-semibold"
                 style={{ color: "#73112d", cursor: "pointer" }}
               >
-                <Link to="/" className="text-decoration-none text-danger"> Sign in</Link>
+                <Link to="/" className="text-decoration-none text-danger">
+                  {" "}
+                  Sign in
+                </Link>
               </span>
             </p>
           )}
