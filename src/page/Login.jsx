@@ -80,7 +80,7 @@ const Login = () => {
             className="m-0 fs-2 fw-bold d-flex align-items-center justify-content-center gap-2"
             style={{ fontFamily: "Georgia, serif" }}
           >
-            <i className="bi bi-heart-fill fs-4 text-white"></i> Amour
+            <i className="bi bi-heart-fill fs-4 text-white"></i> Enamora
           </h1>
           <p
             className="text-uppercase tracking-widest m-0 mt-1 fw-bold"

@@ -74,6 +74,17 @@ const GENDER_OPTIONS = [
   "other",
 ];
 
+const RELATIONSHIP_STATUS_OPTIONS = [
+  "single",
+  "in a relationship",
+  "married",
+  "divorced",
+  "widowed",
+  "separated",
+  "it's complicated",
+  "prefer not to say",
+];
+
 const LOOKING_FOR_OPTIONS = [
   "female",
   "male",
@@ -108,6 +119,7 @@ const SignUpFlow = ({ onComplete }) => {
     interests: [],
     badge: "Love & Friends",
     lookingFor: "",
+    relationshipStatus: "",
   });
 
   const [customInterest, setCustomInterest] = useState("");
@@ -139,10 +151,8 @@ const SignUpFlow = ({ onComplete }) => {
       if (!formData.age) newErrors.age = "Age is required!";
       else if (Number(formData.age) < 18 || Number(formData.age) > 99)
         newErrors.age = "Age must be between 18 and 99!";
-      if (!formData.state.trim())
-        newErrors.state = "State is required!";
-      if (!formData.region.trim())
-        newErrors.region = "Region is required!";
+      if (!formData.state.trim()) newErrors.state = "State is required!";
+      if (!formData.region.trim()) newErrors.region = "Region is required!";
     } else if (step === 3) {
       if (formData.bio.length < 20)
         newErrors.bio = "Bio must be at least 20 characters!";
@@ -173,13 +183,13 @@ const SignUpFlow = ({ onComplete }) => {
       data.append("state", formData.state);
       data.append("region", formData.region);
       data.append("interests", JSON.stringify(formData.interests));
+      data.append("lookingFor", formData.lookingFor);
 
       if (formData.photo) {
         data.append("photo", formData.photo);
       }
 
       const response = await api.post("/auth/signup", data);
-      
 
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
@@ -297,7 +307,7 @@ const SignUpFlow = ({ onComplete }) => {
             {step === 1 ? (
               <Link
                 to="/"
-                className={`btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle`}
+                className="btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle"
                 style={{ width: "28px", height: "28px" }}
               >
                 <i
@@ -309,7 +319,7 @@ const SignUpFlow = ({ onComplete }) => {
               <button
                 onClick={handleBack}
                 disabled={loading}
-                className={`btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle`}
+                className="btn p-0 border-0 bg-transparent text-dark d-flex align-items-center justify-content-center rounded-circle"
                 style={{
                   width: "28px",
                   height: "28px",
@@ -574,6 +584,42 @@ const SignUpFlow = ({ onComplete }) => {
                   className="text-uppercase text-muted fw-bold d-block mb-2"
                   style={{ fontSize: "0.65rem", letterSpacing: "1px" }}
                 >
+                  Relationship Status
+                </label>
+
+                <select
+                  value={formData.relationshipStatus}
+                  onChange={(e) =>
+                    updateField("relationshipStatus", e.target.value)
+                  }
+                  className="form-select border-0 rounded-3 px-3 py-2.5 shadow-none"
+                  style={{
+                    backgroundColor: "#efeae4",
+                    fontSize: "0.9rem",
+                    color: formData.relationshipStatus ? "#212529" : "#6c757d",
+                  }}
+                >
+                  <option value="" disabled>
+                    Select relationship status
+                  </option>
+
+                  {RELATIONSHIP_STATUS_OPTIONS.map((option) => (
+                    <option
+                      key={option}
+                      value={option}
+                      style={{ color: "#212529" }}
+                    >
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  className="text-uppercase text-muted fw-bold d-block mb-2"
+                  style={{ fontSize: "0.65rem", letterSpacing: "1px" }}
+                >
                   State
                 </label>
                 <input
@@ -608,15 +654,6 @@ const SignUpFlow = ({ onComplete }) => {
                   <div className="invalid-feedback">{errors.region}</div>
                 )}
               </div>
-
-              
-              
-              
-              
-              
-              
-              
-    
             </div>
           </div>
         )}
@@ -646,7 +683,7 @@ const SignUpFlow = ({ onComplete }) => {
                 />
                 <div
                   onClick={() => fileInputRef.current.click()}
-                  className="rounded-4 d-flex flex-column align-items-center justify-content-center cursor-pointer border border-dashed overflow-hidden position-relative"
+                  className="rounded-4 d-flex flex-column align-items-center justify-content-center border border-dashed overflow-hidden position-relative"
                   style={{
                     width: "120px",
                     height: "120px",
@@ -660,7 +697,7 @@ const SignUpFlow = ({ onComplete }) => {
                       <img
                         src={formData.photoPreview}
                         alt="Preview"
-                        className="w-100 h-100 object-cover"
+                        className="w-100 h-100"
                         style={{ objectFit: "cover" }}
                       />
                       <div
@@ -839,7 +876,7 @@ const SignUpFlow = ({ onComplete }) => {
                   <div
                     key={option.id}
                     onClick={() => updateField("badge", option.id)}
-                    className="card border-0 rounded-4 shadow-sm bg-white p-3 d-flex flex-row align-items-center justify-content-between cursor-pointer"
+                    className="card border-0 rounded-4 shadow-sm bg-white p-3 d-flex flex-row align-items-center justify-content-between"
                     style={{
                       cursor: "pointer",
                       border: isSelected
@@ -894,7 +931,8 @@ const SignUpFlow = ({ onComplete }) => {
               Who are you looking for?
             </h2>
             <p className="text-muted mb-4" style={{ fontSize: "0.85rem" }}>
-              Select the option that best describes who you'd like to connect with.
+              Select the option that best describes who you'd like to connect
+              with.
             </p>
 
             <div className="d-flex flex-wrap gap-2 mb-3">
@@ -925,21 +963,17 @@ const SignUpFlow = ({ onComplete }) => {
             )}
           </div>
         )}
-      </main>
 
-      {/* Persistent Base Action Buttons Footer Panel */}
-      <footer className="p-4 bg-transparent">
-        <div
-          className="mx-auto w-100 d-flex flex-column align-items-center gap-3"
-          style={{ maxWidth: "1000px" }}
-        >
+        {/* Bottom Navigation Control Bar */}
+        <div className="d-flex justify-content-end mt-4">
           <button
             type="button"
             onClick={handleNext}
             disabled={loading}
-            className="btn w-100 rounded-3 py-2.5 border-0 text-white fw-semibold d-flex align-items-center justify-content-center gap-2"
+            className="btn rounded-pill px-4 py-2 text-white fw-medium shadow-sm d-flex align-items-center gap-2"
             style={{
               backgroundColor: "#73112d",
+              border: "none",
               fontSize: "0.9rem",
             }}
           >
@@ -951,36 +985,13 @@ const SignUpFlow = ({ onComplete }) => {
               ></span>
             ) : (
               <>
-                <span>{step === 6 ? "Create my profile" : "Continue"}</span>
-                {step < 6 && (
-                  <i
-                    className="bi bi-arrow-right"
-                    style={{ fontSize: "0.85rem" }}
-                  ></i>
-                )}
+                <span>{step === 6 ? "Complete Sign Up" : "Continue"}</span>
+                <i className="bi bi-arrow-right"></i>
               </>
             )}
           </button>
-
-          {step === 1 && (
-            <p
-              className="text-center text-muted m-0"
-              style={{ fontSize: "0.8rem" }}
-            >
-              Already have an account?{" "}
-              <span
-                className="text-decoration-underline cursor-pointer fw-semibold"
-                style={{ color: "#73112d", cursor: "pointer" }}
-              >
-                <Link to="/" className="text-decoration-none text-danger">
-                  {" "}
-                  Sign in
-                </Link>
-              </span>
-            </p>
-          )}
         </div>
-      </footer>
+      </main>
     </div>
   );
 };

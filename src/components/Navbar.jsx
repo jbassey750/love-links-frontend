@@ -10,6 +10,12 @@ const PAGE_CONFIG = {
     badgeIcon: "bi-geo-alt-fill",
     badgeColor: "bg-success",
   },
+  "/more/people": {
+    subtitle: "discover",
+    badgeLabel: "more people",
+    badgeIcon: "bi bi-three-dots",
+    badgeColor: "bg-warning",
+  },
   "/matches": {
     subtitle: "Mutual Connections",
     badgeLabel: "2 New Matches",

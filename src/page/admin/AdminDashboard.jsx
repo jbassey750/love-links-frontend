@@ -21,6 +21,25 @@ const MOCK_REPORTS = [
   { id: "r2", reportedUser: "Dmitri Vance", reportedBy: "Sarah Jenkins", reason: "Fake profile / Impersonation", date: "2026-03-29", status: "Open" },
 ];
 
+const initialUserFields = {
+  fullName: "",
+  username: "",
+  email: "",
+  password: "",
+  phone: "",
+  gender: "male",
+  dateOfBirth: "",
+  age: "",
+  region: "",
+  state: "",
+  location: "",
+  bio: "",
+  photo: "",
+  lookingfor: ["female"],
+  interests: "",
+  relationshipStatus: "single",
+};
+
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("users"); // 'users' | 'reports' | 'create-premium' | 'create-moderator' | 'create-package'
   const [users, setUsers] = useState(MOCK_USERS);
@@ -29,26 +48,30 @@ const AdminDashboard = () => {
 
   // Form State: Create Premium User
   const [premiumUserForm, setPremiumUserForm] = useState({
+    ...initialUserFields,
     fullName: "Alex Morgan",
     username: "alexmorgan",
     email: "alex@example.com",
     password: "Password123",
     phone: "+15550123460",
     gender: "non-binary",
+    dateOfBirth: "1997-05-15",
     age: 27,
-    location: "Seattle, Washington",
+    region: "North America",
+    state: "Washington",
+    location: "Seattle",
     photo: "",
     bio: "Creative soul who loves music festivals, art galleries, and meeting new people.",
     interests: "Music, Gaming, Art, Travel",
+    lookingfor: ["male", "female", "non-binary"],
+    relationshipStatus: "single",
     badge: "Friends",
-    lookingFor: ["male", "female", "non-binary"],
     role: "premium"
   });
 
   // Form State: Create Moderator
   const [moderatorForm, setModeratorForm] = useState({
-    email: "",
-    password: "",
+    ...initialUserFields,
     role: "moderator"
   });
 
@@ -83,13 +106,14 @@ const AdminDashboard = () => {
     setReports(prev => prev.filter(r => r.reportedUser !== users.find(u => u.id === userId)?.name));
   };
 
-  const handleLookingForChange = (gender) => {
-    setPremiumUserForm(prev => {
-      const current = prev.lookingFor;
+  const handleLookingForChange = (gender, formType) => {
+    const setForm = formType === "premium" ? setPremiumUserForm : setModeratorForm;
+    setForm(prev => {
+      const current = prev.lookingfor || [];
       const updated = current.includes(gender)
         ? current.filter(g => g !== gender)
         : [...current, gender];
-      return { ...prev, lookingFor: updated };
+      return { ...prev, lookingfor: updated };
     });
   };
 
@@ -112,7 +136,7 @@ const AdminDashboard = () => {
   const handleCreateModerator = (e) => {
     e.preventDefault();
     alert(`Moderator account created for ${moderatorForm.email}`);
-    setModeratorForm({ email: "", password: "", role: "moderator" });
+    setModeratorForm({ ...initialUserFields, role: "moderator" });
   };
 
   const handleCreatePackage = (e) => {
@@ -132,6 +156,211 @@ const AdminDashboard = () => {
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Helper render function for profile form inputs
+  const renderProfileInputs = (formData, setFormData, formType) => (
+    <div className="row g-3" style={{ fontSize: "0.85rem" }}>
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Full Name!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.fullName}
+          onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+          required
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Username!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.username}
+          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+          required
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Email!</label>
+        <input
+          type="email"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          required
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Password!</label>
+        <input
+          type="password"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          required
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Phone!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Gender!</label>
+        <select
+          className="form-select border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.gender}
+          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+        >
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="non-binary">Non-binary</option>
+        </select>
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Date of Birth!</label>
+        <input
+          type="date"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.dateOfBirth}
+          onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Age!</label>
+        <input
+          type="number"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.age}
+          onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12 col-md-4">
+        <label className="form-label fw-semibold text-dark">Region!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.region}
+          onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12 col-md-4">
+        <label className="form-label fw-semibold text-dark">State!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.state}
+          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12 col-md-4">
+        <label className="form-label fw-semibold text-dark">Location!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.location}
+          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Photo URL!</label>
+        <input
+          type="file"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.photo}
+          onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
+          placeholder="https://..."
+        />
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Relationship Status!</label>
+        <select
+          className="form-select border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.relationshipStatus}
+          onChange={(e) => setFormData({ ...formData, relationshipStatus: e.target.value })}
+        >
+          <option value="single">Single</option>
+          <option value="in-relationship">In a Relationship</option>
+          <option value="engaged">Engaged</option>
+          <option value="married">Married</option>
+          <option value="divorced">Divorced</option>
+          <option value="widowed">Widowed</option>
+          <option value="complicated">It's Complicated</option>
+        </select>
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark d-block">Looking For!</label>
+        <div className="d-flex gap-3 pt-1">
+          {["male", "female", "non-binary"].map((gender) => (
+            <div className="form-check" key={gender}>
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id={`${formType}-looking-${gender}`}
+                checked={(formData.lookingfor || []).includes(gender)}
+                onChange={() => handleLookingForChange(gender, formType)}
+              />
+              <label className="form-check-label text-capitalize" htmlFor={`${formType}-looking-${gender}`}>
+                {gender}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="col-12 col-md-6">
+        <label className="form-label fw-semibold text-dark">Interests (comma separated)!</label>
+        <input
+          type="text"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.interests}
+          onChange={(e) => setFormData({ ...formData, interests: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12">
+        <label className="form-label fw-semibold text-dark">Bio!</label>
+        <textarea
+          rows="3"
+          className="form-control border-1 rounded-3"
+          style={{ backgroundColor: "#efeae4" }}
+          value={formData.bio}
+          onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+        ></textarea>
+      </div>
+    </div>
   );
 
   return (
@@ -198,7 +427,7 @@ const AdminDashboard = () => {
               </div>
               <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: "42px", height: "42px", backgroundColor: "#efeae4", color: "#dc3545" }}>
                 <i className="bi bi-shield-exclamation fs-5"></i>
-              </div>
+              </div> 
             </div>
           </div>
         </div>
@@ -401,107 +630,10 @@ const AdminDashboard = () => {
               Create Premium User
             </h3>
             <form onSubmit={handleCreatePremiumUser}>
-              <div className="row g-3" style={{ fontSize: "0.85rem" }}>
+              {renderProfileInputs(premiumUserForm, setPremiumUserForm, "premium")}
+              <div className="row g-3 mt-1" style={{ fontSize: "0.85rem" }}>
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Full Name</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.fullName}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, fullName: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Username</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.username}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, username: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Email</label>
-                  <input
-                    type="email"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.email}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Password</label>
-                  <input
-                    type="password"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.password}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, password: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Phone</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.phone}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, phone: e.target.value })}
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Gender</label>
-                  <select
-                    className="form-select border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.gender}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, gender: e.target.value })}
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="non-binary">Non-binary</option>
-                  </select>
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label fw-semibold text-dark">Age</label>
-                  <input
-                    type="number"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.age}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, age: e.target.value })}
-                  />
-                </div>
-                <div className="col-12 col-md-8">
-                  <label className="form-label fw-semibold text-dark">Location</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.location}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, location: e.target.value })}
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Photo URL</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.photo}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, photo: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Badge</label>
+                  <label className="form-label fw-semibold text-dark">Badge!</label>
                   <input
                     type="text"
                     className="form-control border-1 rounded-3"
@@ -511,7 +643,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Role</label>
+                  <label className="form-label fw-semibold text-dark">Role!</label>
                   <select
                     className="form-select border-1 rounded-3"
                     style={{ backgroundColor: "#efeae4" }}
@@ -522,45 +654,6 @@ const AdminDashboard = () => {
                     <option value="user">user</option>
                     <option value="premium">premium</option>
                   </select>
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark d-block">Looking For</label>
-                  <div className="d-flex gap-3 pt-1">
-                    {["male", "female", "non-binary"].map((gender) => (
-                      <div className="form-check" key={gender}>
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id={`looking-${gender}`}
-                          checked={premiumUserForm.lookingFor.includes(gender)}
-                          onChange={() => handleLookingForChange(gender)}
-                        />
-                        <label className="form-check-label text-capitalize" htmlFor={`looking-${gender}`}>
-                          {gender}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="col-12">
-                  <label className="form-label fw-semibold text-dark">Interests (comma separated)</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.interests}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, interests: e.target.value })}
-                  />
-                </div>
-                <div className="col-12">
-                  <label className="form-label fw-semibold text-dark">Bio</label>
-                  <textarea
-                    rows="3"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={premiumUserForm.bio}
-                    onChange={(e) => setPremiumUserForm({ ...premiumUserForm, bio: e.target.value })}
-                  ></textarea>
                 </div>
                 <div className="col-12 pt-2">
                   <button type="submit" className="btn text-white px-4 py-2 fw-semibold" style={{ backgroundColor: "#73112d" }}>
@@ -574,36 +667,15 @@ const AdminDashboard = () => {
 
         {/* TAB 4: Create Moderator/Agent */}
         {activeTab === "create-moderator" && (
-          <div className="bg-white rounded-3 border shadow-sm p-4" style={{ maxWidth: "500px" }}>
+          <div className="bg-white rounded-3 border shadow-sm p-4" style={{ maxWidth: "800px" }}>
             <h3 className="fs-5 fw-bold mb-3" style={{ fontFamily: "Georgia, serif", color: "#73112d" }}>
               Create Moderator / Agent
             </h3>
             <form onSubmit={handleCreateModerator}>
-              <div className="d-flex flex-column gap-3" style={{ fontSize: "0.85rem" }}>
-                <div>
-                  <label className="form-label fw-semibold text-dark">Email Address</label>
-                  <input
-                    type="email"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={moderatorForm.email}
-                    onChange={(e) => setModeratorForm({ ...moderatorForm, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label fw-semibold text-dark">Password</label>
-                  <input
-                    type="password"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={moderatorForm.password}
-                    onChange={(e) => setModeratorForm({ ...moderatorForm, password: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label fw-semibold text-dark">Role</label>
+              {renderProfileInputs(moderatorForm, setModeratorForm, "moderator")}
+              <div className="row g-3 mt-1" style={{ fontSize: "0.85rem" }}>
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold text-dark">Role!</label>
                   <input
                     type="text"
                     className="form-control border-1 rounded-3 text-muted"
@@ -612,8 +684,8 @@ const AdminDashboard = () => {
                     disabled
                   />
                 </div>
-                <div className="pt-2">
-                  <button type="submit" className="btn text-white px-4 py-2 fw-semibold w-100" style={{ backgroundColor: "#73112d" }}>
+                <div className="col-12 pt-2">
+                  <button type="submit" className="btn text-white px-4 py-2 fw-semibold" style={{ backgroundColor: "#73112d" }}>
                     Create Moderator Account
                   </button>
                 </div>
@@ -631,7 +703,7 @@ const AdminDashboard = () => {
             <form onSubmit={handleCreatePackage}>
               <div className="row g-3" style={{ fontSize: "0.85rem" }}>
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Package Name</label>
+                  <label className="form-label fw-semibold text-dark">Package Name!</label>
                   <input
                     type="text"
                     className="form-control border-1 rounded-3"
@@ -643,7 +715,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Price ($)</label>
+                  <label className="form-label fw-semibold text-dark">Price ($)!</label>
                   <input
                     type="number"
                     step="0.01"
@@ -656,65 +728,36 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Billing Cycle</label>
+                  <label className="form-label fw-semibold text-dark">Billing Cycle!</label>
                   <select
                     className="form-select border-1 rounded-3"
                     style={{ backgroundColor: "#efeae4" }}
                     value={packageForm.billingCycle}
                     onChange={(e) => setPackageForm({ ...packageForm, billingCycle: e.target.value })}
                   >
-                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
                     <option value="yearly">Yearly</option>
                   </select>
                 </div>
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold text-dark">Duration (Months)</label>
+                  <label className="form-label fw-semibold text-dark">Duration (Months)!</label>
                   <input
                     type="number"
                     className="form-control border-1 rounded-3"
                     style={{ backgroundColor: "#efeae4" }}
                     value={packageForm.durationMonths}
                     onChange={(e) => setPackageForm({ ...packageForm, durationMonths: e.target.value })}
-                    min="1"
                   />
                 </div>
                 <div className="col-12">
-                  <label className="form-label fw-semibold text-dark">Features (comma separated)</label>
-                  <input
-                    type="text"
-                    className="form-control border-1 rounded-3"
-                    style={{ backgroundColor: "#efeae4" }}
-                    value={packageForm.features}
-                    onChange={(e) => setPackageForm({ ...packageForm, features: e.target.value })}
-                    placeholder="Unlimited Rewinds, See Who Likes You, Passport Feature"
-                  />
-                </div>
-                <div className="col-12">
-                  <label className="form-label fw-semibold text-dark">Description</label>
+                  <label className="form-label fw-semibold text-dark">Description!</label>
                   <textarea
                     rows="2"
                     className="form-control border-1 rounded-3"
                     style={{ backgroundColor: "#efeae4" }}
                     value={packageForm.description}
                     onChange={(e) => setPackageForm({ ...packageForm, description: e.target.value })}
-                    placeholder="Brief details about what makes this tier special..."
                   ></textarea>
-                </div>
-                <div className="col-12">
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="isPopular"
-                      checked={packageForm.isPopular}
-                      onChange={(e) => setPackageForm({ ...packageForm, isPopular: e.target.checked })}
-                    />
-                    <label className="form-check-label fw-semibold text-dark" htmlFor="isPopular">
-                      Mark as "Most Popular"
-                    </label>
-                  </div>
                 </div>
                 <div className="col-12 pt-2">
                   <button type="submit" className="btn text-white px-4 py-2 fw-semibold" style={{ backgroundColor: "#73112d" }}>

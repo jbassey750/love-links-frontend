@@ -7,6 +7,7 @@ import Login from "../page/Login";
 import SignUp from "../page/SignUp";
 
 import Home from "../page/Home";
+import DiscoverUsers from "../page/DiscoverUsers"
 import Matches from "../page/Matches";
 import ConversationsList from "../page/ConversationsList";
 import Chat from "../page/Chat";
@@ -59,6 +60,7 @@ function AppRouter() {
 
       <Route element={<MainLayout />}>
         <Route path="discover" element={<Home />} />
+        <Route path="/more/people" element={<DiscoverUsers />} />
         <Route path="matches" element={<Matches />} />
         <Route path="conversations" element={<ConversationsList />} />
         <Route path="profile" element={<Profile />} />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChatContext } from "../context/ChatContext";
+import { NotificationContext } from "../context/NotificationContext";
 import Loader from "../components/Loader";
 import axios from "../api/axios";
 
@@ -10,46 +11,81 @@ const truncateText = (text, maxLength = 60) => {
   return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
 };
 
+const formatConversationTime = (timestamp) => {
+  if (!timestamp) return "";
+
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const now = new Date();
+
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
+};
+
 const ConversationsList = () => {
   const navigate = useNavigate();
+
   const { setSelectedChat } = useContext(ChatContext);
+
+  const { latestNotification, clearLatestNotification } =
+    useContext(NotificationContext);
 
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState(null);
 
-  // State for tracking deletion confirmation & notification messages
   const [chatToDelete, setChatToDelete] = useState(null);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Fetch dynamic matches from database
+  // Fetch conversations
   useEffect(() => {
     let isMounted = true;
 
     const fetchMatches = async () => {
       try {
         setError(null);
+
         const response = await axios.get("/matches");
 
         if (isMounted) {
-          // Extracts array from standard response structures (Array or nested key e.g. { data: [...] } or { matches: [...] })
           const responseData = response.data;
+
           const rawMatches = Array.isArray(responseData)
             ? responseData
             : responseData.matches || responseData.data || [];
 
-          // Map database payload directly into component format
           const formattedConversations = rawMatches.map((match) => {
-            // Accommodate nested user schemas (e.g., match.user.name or match.name)
             const matchUser = match.user || match.matchedUser || match;
 
             return {
-              id: match._id, // Match ID
-              chatId: match.chatId, // Chat ID
-              name: matchUser.fullName || "User",
+              id: match._id || match.id,
+              chatId: match.chatId || match._id || match.id,
+              name: matchUser.fullName || matchUser.name || "User",
               lastMessage: match.lastMessage || "No messages yet",
               isLastMessageUser: Boolean(match.isLastMessageUser),
-              timestamp: match.lastMessageAt || "",
+              timestamp: match.lastMessageAt || match.updatedAt || match.createdAt || "",
               unreadCount: match.unreadCount || 0,
               isRead: match.isRead !== undefined ? match.isRead : true,
               isOnline: matchUser.status === "online",
@@ -67,6 +103,7 @@ const ConversationsList = () => {
         }
       } catch (err) {
         console.error("Failed to fetch matches from server:", err);
+
         if (isMounted) {
           setError("Failed to load conversations. Please try again later.");
         }
@@ -84,6 +121,76 @@ const ConversationsList = () => {
     };
   }, []);
 
+  // Handle new message notification
+  useEffect(() => {
+    if (!latestNotification) return;
+
+    if (latestNotification.type !== "message") {
+      clearLatestNotification?.();
+      return;
+    }
+
+    const notificationChatId =
+      latestNotification.data?.chatId || latestNotification.chatId;
+
+    if (!notificationChatId) {
+      console.warn("Message notification has no chatId:", latestNotification);
+
+      clearLatestNotification?.();
+      return;
+    }
+
+    const sender = latestNotification.sender || latestNotification.data?.sender || {};
+    const messageContent =
+      latestNotification.body ||
+      latestNotification.message ||
+      latestNotification.data?.message ||
+      "New message";
+
+    setConversations((prev) => {
+      const existingChatIndex = prev.findIndex(
+        (chat) =>
+          chat.chatId?.toString() === notificationChatId?.toString() ||
+          chat.id?.toString() === notificationChatId?.toString()
+      );
+
+      if (existingChatIndex !== -1) {
+        const existingChat = prev[existingChatIndex];
+        const updatedChat = {
+          ...existingChat,
+          lastMessage: messageContent,
+          isLastMessageUser: false,
+          isRead: false,
+          unreadCount: Math.max(1, Number(existingChat.unreadCount || 0) + 1),
+          timestamp: new Date().toISOString(),
+        };
+
+        const updatedList = [...prev];
+        updatedList.splice(existingChatIndex, 1);
+        return [updatedChat, ...updatedList];
+      }
+
+      // If it's a new conversation received via notification
+      const newChat = {
+        id: notificationChatId,
+        chatId: notificationChatId,
+        name: sender.fullName || sender.name || "User",
+        lastMessage: messageContent,
+        isLastMessageUser: false,
+        timestamp: new Date().toISOString(),
+        unreadCount: 1,
+        isRead: false,
+        isOnline: sender.status === "online",
+        image: sender.photo || sender.image || sender.avatar || "",
+        raw: latestNotification,
+      };
+
+      return [newChat, ...prev];
+    });
+
+    clearLatestNotification?.();
+  }, [latestNotification]);
+
   // Auto-dismiss success toast after 3 seconds
   useEffect(() => {
     if (toastMessage) {
@@ -94,26 +201,53 @@ const ConversationsList = () => {
     }
   }, [toastMessage]);
 
+  // Handle selecting chat and marking as read
   const handleSelectChat = (chat) => {
-    setSelectedChat(chat);
-    navigate(`/chat/${chat.chatId}`, { state: { chat } });
+    setConversations((prev) =>
+      prev.map((item) =>
+        item.id === chat.id
+          ? {
+              ...item,
+              isRead: true,
+              unreadCount: 0,
+            }
+          : item
+      )
+    );
+
+    const updatedChat = {
+      ...chat,
+      isRead: true,
+      unreadCount: 0,
+    };
+
+    setSelectedChat(updatedChat);
+
+    navigate(`/chat/${chat.chatId}`, {
+      state: {
+        chat: updatedChat,
+      },
+    });
   };
 
   // Toggle Read / Unread State
   const handleToggleRead = (e, id) => {
     e.stopPropagation();
+
     setConversations((prev) =>
       prev.map((chat) => {
-        if (chat.id === id) {
-          const nextIsRead = !chat.isRead;
-          return {
-            ...chat,
-            isRead: nextIsRead,
-            unreadCount: nextIsRead ? 0 : 1,
-          };
+        if (chat.id !== id) {
+          return chat;
         }
-        return chat;
-      }),
+
+        const nextIsRead = !chat.isRead;
+
+        return {
+          ...chat,
+          isRead: nextIsRead,
+          unreadCount: nextIsRead ? 0 : Math.max(1, chat.unreadCount || 0),
+        };
+      })
     );
   };
 
@@ -128,13 +262,11 @@ const ConversationsList = () => {
     if (!chatToDelete) return;
 
     try {
-      // Optimistically remove from state
       const targetId = chatToDelete.id;
       setConversations((prev) => prev.filter((chat) => chat.id !== targetId));
       setChatToDelete(null);
       setToastMessage("Chat deleted successfully.");
 
-      // Backend API call to permanently delete or archive match
       await axios.delete(`/matches/${targetId}`);
     } catch (err) {
       console.error("Error deleting chat on server:", err);
@@ -256,10 +388,14 @@ const ConversationsList = () => {
                   <div className="d-flex flex-column align-items-end me-1">
                     {chat.timestamp && (
                       <span
-                        className="text-muted"
-                        style={{ fontSize: "0.7rem", whiteSpace: "nowrap" }}
+                        className={`${!chat.isRead ? "fw-bold" : "text-muted"}`}
+                        style={{
+                          fontSize: "0.7rem",
+                          whiteSpace: "nowrap",
+                          color: !chat.isRead ? "#73112d" : undefined,
+                        }}
                       >
-                        {chat.timestamp}
+                        {formatConversationTime(chat.timestamp)}
                       </span>
                     )}
 

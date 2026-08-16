@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom"; // Hook for SPA navigation witho
 import Loader from "../../components/Loader"; // Importing Loader component
 import axios from "../../api/axios"; // Importing axios instance for API calls
 import { NotificationContext } from "../../context/NotificationContext";
+// import { io } from "socket.io-client";
 
 const Notifications = () => {
   const navigate = useNavigate();
-  const { unreadCount, refreshUnreadCount, setUnreadCount } = useContext(NotificationContext);
+  const { unreadCount, refreshUnreadCount, setUnreadCount } =
+    useContext(NotificationContext);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all"); // 'all' | 'unread' | 'match' | 'like'
