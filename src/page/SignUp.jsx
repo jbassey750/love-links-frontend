@@ -151,6 +151,8 @@ const SignUpFlow = ({ onComplete }) => {
       if (!formData.age) newErrors.age = "Age is required!";
       else if (Number(formData.age) < 18 || Number(formData.age) > 99)
         newErrors.age = "Age must be between 18 and 99!";
+      if (!formData.relationshipStatus)
+        newErrors.relationshipStatus = "Relationship status is required!";
       if (!formData.state.trim()) newErrors.state = "State is required!";
       if (!formData.region.trim()) newErrors.region = "Region is required!";
     } else if (step === 3) {
@@ -179,7 +181,9 @@ const SignUpFlow = ({ onComplete }) => {
       data.append("age", formData.age);
       data.append("bio", formData.bio);
       data.append("badge", formData.badge);
-      data.append("lookingFor", formData.lookingFor);
+
+      data.append("relationshipStatus", formData.relationshipStatus);
+      // data.append("lookingFor", formData.lookingFor);
       data.append("state", formData.state);
       data.append("region", formData.region);
       data.append("interests", JSON.stringify(formData.interests));
