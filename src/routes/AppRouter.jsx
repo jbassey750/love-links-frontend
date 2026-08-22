@@ -61,7 +61,7 @@ function AppRouter() {
       <Route element={<MainLayout />}>
         <Route path="discover" element={<Home />} />
         <Route path="/more/people" element={<DiscoverUsers />} />
-        <Route path="matches" element={<Matches />} />
+        {/* <Route path="matches" element={<Matches />} /> */}
         <Route path="conversations" element={<ConversationsList />} />
         <Route path="profile" element={<Profile />} />
         <Route path="notifications" element={<Notifications />} />

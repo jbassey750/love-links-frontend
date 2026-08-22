@@ -11,7 +11,7 @@ const PAGE_CONFIG = {
     badgeColor: "bg-success",
   },
   "/more/people": {
-    subtitle: "discover",
+    subtitle: "discover people",
     badgeLabel: "more people",
     badgeIcon: "bi bi-three-dots",
     badgeColor: "bg-warning",
@@ -90,7 +90,7 @@ const Navbar = ({ location = "Amsterdam" }) => {
           className="m-0 fs-3 fw-bold text-serif"
           style={{ color: "#5c1d24", fontFamily: "Georgia, serif" }}
         >
-          Amour
+          Enamora
         </h1>
         <small
           className="text-uppercase tracking-wider text-muted fw-semibold"

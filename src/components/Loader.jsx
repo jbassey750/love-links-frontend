@@ -4,36 +4,54 @@ const Loader = ({ message = "Loading, please wait...", fullScreen = false }) => 
   const content = (
     <div className="d-flex flex-column align-items-center justify-content-center p-4 text-center">
       <style>{`
-        @keyframes pulseGlow {
+        @keyframes imageBeat {
           0% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(115, 17, 45, 0.4);
+            transform: scale(0.92);
+            box-shadow: 0 0 0 0 rgba(115, 17, 45, 0.45);
           }
+
+          35% {
+            transform: scale(1);
+            box-shadow: 0 0 0 10px rgba(115, 17, 45, 0.15);
+          }
+
+          50% {
+            transform: scale(0.96);
+            box-shadow: 0 0 0 14px rgba(115, 17, 45, 0.08);
+          }
+
           70% {
             transform: scale(1);
-            box-shadow: 0 0 0 16px rgba(115, 17, 45, 0);
+            box-shadow: 0 0 0 20px rgba(115, 17, 45, 0);
           }
+
           100% {
-            transform: scale(0.95);
+            transform: scale(0.92);
             box-shadow: 0 0 0 0 rgba(115, 17, 45, 0);
           }
         }
 
-        .pulse-heart {
-          width: 64px;
-          height: 64px;
+        .loader-image {
+          width: 90px;
+          height: 90px;
           border-radius: 50%;
-          background: #73112D;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: pulseGlow 1.8s infinite ease-in-out;
+          object-fit: cover;
+          display: block;
+          animation: imageBeat 1.5s infinite ease-in-out;
         }
 
         @keyframes dots {
-          0%, 20% { content: '.'; }
-          40% { content: '..'; }
-          60%, 100% { content: '...'; }
+          0%, 20% {
+            content: '.';
+          }
+
+          40% {
+            content: '..';
+          }
+
+          60%, 100% {
+            content: '...';
+          }
         }
 
         .loading-dots::after {
@@ -43,33 +61,43 @@ const Loader = ({ message = "Loading, please wait...", fullScreen = false }) => 
         }
       `}</style>
 
-      {/* Pulsing Icon */}
-      <div className="pulse-heart mb-3 shadow-sm">
-        <span style={{ fontSize: "1.8rem" }}>❤️</span>
+      {/* LoveLink Image - Beating Animation */}
+      <div className="mb-3">
+        <img
+          src="/images/lovelink-loader.PNG"
+          alt="LoveLink"
+          className="loader-image"
+        />
       </div>
 
       {/* Loading Spinner */}
-      <div
-        className="spinner-border mb-3"
-        role="status"
-        style={{
-          width: "2rem",
-          height: "2rem",
-          color: "#73112D",
-          borderWidth: "0.2em",
-        }}
-      >
-        <span className="visually-hidden">Loading...</span>
-      </div>
+      {/* <div */}
+        {/* // className="spinner-border mb-3" */}
+        {/* // role="status" */}
+        {/* // style={{ */}
+          {/* // width: "2rem", */}
+          {/* // height: "2rem", */}
+          {/* // color: "#73112D", */}
+          {/* // borderWidth: "0.2em", */}
+        {/* // }} */}
+      {/* // > */}
+        {/* <span className="visually-hidden">Loading...</span> */}
+      {/* </div> */}
 
       {/* Animated Text */}
-      <h6 className="fw-bold text-dark m-0" style={{ fontSize: "0.95rem" }}>
+      <h6
+        className="fw-bold text-dark m-0"
+        style={{ fontSize: "0.95rem" }}
+      >
         {message}
         <span className="loading-dots"></span>
       </h6>
     </div>
   );
 
+  // =====================================================
+  // FULL SCREEN LOADER
+  // =====================================================
   if (fullScreen) {
     return (
       <div
@@ -85,6 +113,9 @@ const Loader = ({ message = "Loading, please wait...", fullScreen = false }) => 
     );
   }
 
+  // =====================================================
+  // NORMAL LOADER
+  // =====================================================
   return (
     <div className="w-100 d-flex align-items-center justify-content-center py-5">
       {content}

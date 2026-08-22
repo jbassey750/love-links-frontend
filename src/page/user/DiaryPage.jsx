@@ -38,10 +38,7 @@ const DiaryPage = () => {
 
       setEntries([]);
 
-      console.error(
-        "Diary error:",
-        error.response?.data || error.message
-      );
+      console.error("Diary error:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -109,7 +106,7 @@ const DiaryPage = () => {
           {
             title: title.trim() || "Untitled Note",
             content: content.trim(),
-          }
+          },
         );
 
         console.log("Updated diary response:", response.data);
@@ -144,10 +141,7 @@ const DiaryPage = () => {
     } catch (error) {
       console.error("Failed to save diary entry:", error);
 
-      console.error(
-        "Save diary error:",
-        error.response?.data || error.message
-      );
+      console.error("Save diary error:", error.response?.data || error.message);
     } finally {
       setSaving(false);
     }
@@ -164,17 +158,13 @@ const DiaryPage = () => {
       await axios.delete(`/diary/${id}`);
 
       // Remove immediately from UI
-      setEntries((prev) =>
-        prev.filter(
-          (item) => (item._id || item.id) !== id
-        )
-      );
+      setEntries((prev) => prev.filter((item) => (item._id || item.id) !== id));
     } catch (error) {
       console.error("Failed to delete diary entry:", error);
 
       console.error(
         "Delete diary error:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
     } finally {
       setDeletingId(null);
@@ -185,10 +175,7 @@ const DiaryPage = () => {
   // FORMAT DATE
   // =====================================================
   const formatDate = (entry) => {
-    const value =
-      entry.createdAt ||
-      entry.updatedAt ||
-      entry.date;
+    const value = entry.createdAt || entry.updatedAt || entry.date;
 
     if (!value) {
       return "";
@@ -211,9 +198,7 @@ const DiaryPage = () => {
   // FORMAT TIME
   // =====================================================
   const formatTime = (entry) => {
-    const value =
-      entry.createdAt ||
-      entry.updatedAt;
+    const value = entry.createdAt || entry.updatedAt;
 
     if (!value) {
       return entry.time || "";
@@ -239,13 +224,7 @@ const DiaryPage = () => {
       return entry.color;
     }
 
-    const colors = [
-      "#fff0f0",
-      "#f0f7ff",
-      "#fff8e7",
-      "#f3f0ff",
-      "#f0fff5",
-    ];
+    const colors = ["#fff0f0", "#f0f7ff", "#fff8e7", "#f3f0ff", "#f0fff5"];
 
     return colors[index % colors.length];
   };
@@ -255,13 +234,9 @@ const DiaryPage = () => {
       className="min-vh-100 position-relative pb-5"
       style={{ backgroundColor: "#fbf6f0" }}
     >
-      <main
-        className="px-3 px-md-4 py-3 mx-auto"
-        style={{ maxWidth: "900px" }}
-      >
+      <main className="px-3 px-md-4 py-3 mx-auto" style={{ maxWidth: "900px" }}>
         {/* Diary Card Grid */}
         <div className="row g-3">
-
           {/* Loading */}
           {loading ? (
             <div className="text-center py-5 text-muted col-12">
@@ -270,83 +245,58 @@ const DiaryPage = () => {
                 role="status"
                 style={{ color: "#5c1d24" }}
               >
-                <span className="visually-hidden">
-                  Loading...
-                </span>
+                <span className="visually-hidden">Loading...</span>
               </div>
 
-              <p className="mt-3 mb-0">
-                Loading your diary...
-              </p>
+              <p className="mt-3 mb-0">Loading your diary...</p>
             </div>
           ) : entries.length === 0 ? (
-
             /* Empty Diary */
             <div className="text-center py-5 text-muted col-12">
               <i className="bi bi-journal-bookmark fs-1 d-block mb-2 opacity-50"></i>
 
               <p>
-                Your diary is empty. Tap the + button to
-                write your first entry.
+                Your diary is empty. Tap the + button to write your first entry.
               </p>
             </div>
-
           ) : (
-
             /* Diary Entries */
             entries.map((entry, index) => {
               const entryId = entry._id || entry.id;
 
               return (
-                <div
-                  key={entryId}
-                  className="col-12 col-md-6"
-                >
+                <div key={entryId} className="col-12 col-md-6">
                   <div
-                    onClick={() =>
-                      handleOpenEdit(entry)
-                    }
+                    onClick={() => handleOpenEdit(entry)}
                     className="card border-0 rounded-4 shadow-sm p-3 h-100 d-flex flex-column justify-content-between"
                     style={{
-                      backgroundColor:
-                        getEntryColor(entry, index),
+                      backgroundColor: getEntryColor(entry, index),
                       cursor: "pointer",
-                      transition:
-                        "transform 0.15s ease",
+                      transition: "transform 0.15s ease",
                     }}
                   >
                     <div>
                       <div className="d-flex justify-content-between align-items-start mb-2">
-
                         <h6
                           className="fw-bold m-0 text-dark"
                           style={{
-                            fontFamily:
-                              "Georgia, serif",
+                            fontFamily: "Georgia, serif",
                           }}
                         >
-                          {entry.title ||
-                            "Untitled Note"}
+                          {entry.title || "Untitled Note"}
                         </h6>
 
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
 
-                            if (
-                              deletingId !==
-                              entryId
-                            ) {
-                              handleDelete(
-                                entryId
-                              );
+                            if (deletingId !== entryId) {
+                              handleDelete(entryId);
                             }
                           }}
                           className="btn btn-sm text-danger p-0 border-0 ms-2"
                           title="Delete note"
-                          disabled={
-                            deletingId === entryId
-                          }
+                          disabled={deletingId === entryId}
                         >
                           {deletingId === entryId ? (
                             <span
@@ -377,8 +327,7 @@ const DiaryPage = () => {
                           fontSize: "0.7rem",
                         }}
                       >
-                        {formatDate(entry)} •{" "}
-                        {formatTime(entry)}
+                        {formatDate(entry)} • {formatTime(entry)}
                       </small>
 
                       <i
@@ -397,12 +346,14 @@ const DiaryPage = () => {
       </main>
 
       {/* Floating Action Plus Button */}
+      {/* Floating Action Plus Button */}
       <button
         onClick={handleOpenCreate}
-        className="btn btn-danger rounded-circle shadow-lg position-fixed bottom-0 end-0 m-4 d-flex align-items-center justify-content-center z-3"
+        className="btn btn-danger rounded-circle shadow-lg position-fixed end-0 m-4 d-flex align-items-center justify-content-center z-3"
         style={{
           width: "56px",
           height: "56px",
+          bottom: "70px",
           backgroundColor: "#5c1d24",
           borderColor: "#5c1d24",
         }}
@@ -430,9 +381,7 @@ const DiaryPage = () => {
                 fontFamily: "Georgia, serif",
               }}
             >
-              {editingEntry
-                ? "Edit Entry"
-                : "New Entry"}
+              {editingEntry ? "Edit Entry" : "New Entry"}
             </h5>
 
             <input
@@ -440,9 +389,7 @@ const DiaryPage = () => {
               className="form-control border-0 bg-light rounded-3 mb-3 fw-bold"
               placeholder="Title (Optional)"
               value={title}
-              onChange={(e) =>
-                setTitle(e.target.value)
-              }
+              onChange={(e) => setTitle(e.target.value)}
               style={{ fontSize: "0.95rem" }}
             />
 
@@ -451,9 +398,7 @@ const DiaryPage = () => {
               rows="6"
               placeholder="Write your thoughts..."
               value={content}
-              onChange={(e) =>
-                setContent(e.target.value)
-              }
+              onChange={(e) => setContent(e.target.value)}
               style={{
                 fontSize: "0.875rem",
                 resize: "none",
@@ -461,7 +406,6 @@ const DiaryPage = () => {
             ></textarea>
 
             <div className="d-flex justify-content-end gap-2">
-
               <button
                 className="btn btn-light rounded-3"
                 onClick={handleCloseModal}
@@ -477,9 +421,7 @@ const DiaryPage = () => {
                   borderColor: "#5c1d24",
                 }}
                 onClick={handleSave}
-                disabled={
-                  saving || !content.trim()
-                }
+                disabled={saving || !content.trim()}
               >
                 {saving ? (
                   <>
@@ -493,7 +435,6 @@ const DiaryPage = () => {
                   "Save"
                 )}
               </button>
-
             </div>
           </div>
         </div>

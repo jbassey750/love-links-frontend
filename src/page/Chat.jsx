@@ -70,9 +70,7 @@ const Chat = (props) => {
   };
 
   const getCurrentUserIdString = () =>
-    String(
-      currentUser?.id || currentUser?._id || getCurrentUserId() || "",
-    );
+    String(currentUser?.id || currentUser?._id || getCurrentUserId() || "");
 
   const formatMessage = (msg, currentUserId) => {
     const senderIdentifier = String(
@@ -131,7 +129,7 @@ const Chat = (props) => {
     }
 
     let isMounted = true;
-    setLoading(true); 
+    setLoading(true);
     setError(null);
 
     const fetchChatData = async () => {
@@ -343,7 +341,8 @@ const Chat = (props) => {
 
       if (
         profileDetails &&
-        (data.userId === profileDetails._id || data.userId === profileDetails.id)
+        (data.userId === profileDetails._id ||
+          data.userId === profileDetails.id)
       ) {
         setProfileDetails((prev) =>
           prev ? { ...prev, status: data.status } : prev,
@@ -1060,8 +1059,8 @@ const Chat = (props) => {
       {/* Modal: Out of Balance Popup */}
       {showZeroBalanceModal && (
         <div
-          className="modal-backdrop fade show d-flex align-items-center justify-content-center p-3"
-          style={{ backgroundColor: "rgba(0,0,0,0.7)", zIndex: 1050 }}
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{ backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999 }}
         >
           <div
             className="card border-0 rounded-4 shadow-lg p-4 bg-white text-center"
@@ -1110,8 +1109,8 @@ const Chat = (props) => {
 
       {showPointsModal && (
         <div
-          className="modal-backdrop fade show d-flex align-items-center justify-content-center p-3"
-          style={{ backgroundColor: "rgba(0,0,0,0.75)", zIndex: 1050 }}
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{ backgroundColor: "rgba(0,0,0,0.75)", zIndex: 9999 }}
         >
           <div
             className="card border-0 rounded-4 shadow-lg p-4 bg-white text-center"
@@ -1168,8 +1167,11 @@ const Chat = (props) => {
 
       {showApiErrorModal && (
         <div
-          className="modal-backdrop fade show d-flex align-items-center justify-content-center p-3"
-          style={{ backgroundColor: "rgba(0,0,0,0.7)", zIndex: 1050 }}
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            zIndex: 9999,
+          }}
         >
           <div
             className="card border-0 rounded-4 shadow-lg p-4 bg-white text-center"
@@ -1213,12 +1215,15 @@ const Chat = (props) => {
       {/* Modal: Feature Unavailable Popup */}
       {showUnavailableModal && (
         <div
-          className="modal-backdrop fade show d-flex align-items-center justify-content-center p-3"
-          style={{ backgroundColor: "rgba(0,0,0,0.75)", zIndex: 1050 }}
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            zIndex: 9999,
+          }}
         >
           <div
             className="card border-0 rounded-4 shadow-lg p-4 bg-white text-center"
-            style={{ maxWidth: "340px" }}
+            style={{ maxWidth: "340px", width: "100%" }}
           >
             <div
               className="rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
@@ -1254,12 +1259,19 @@ const Chat = (props) => {
 
       {showProfileModal && (
         <div
-          className="modal-backdrop fade show d-flex align-items-center justify-content-center p-3"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            zIndex: 9999,
+          }}
         >
           <div
             className="card border-0 rounded-4 shadow-lg p-4 bg-white w-100"
-            style={{ maxWidth: "520px" }}
+            style={{
+              maxWidth: "520px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
           >
             <div className="d-flex align-items-start justify-content-between mb-3">
               <div>

@@ -9,12 +9,6 @@ const DiscoverUsers = () => {
 
   const [filters, setFilters] = useState({
     search: "",
-    state: "",
-    region: "",
-    minAge: "",
-    maxAge: "",
-    gender: "",
-    interest: "",
   });
 
   const [selectedUser, setSelectedUser] = useState(null);
@@ -52,10 +46,7 @@ const DiscoverUsers = () => {
       });
 
       const payload =
-        response.data?.users ||
-        response.data?.data ||
-        response.data ||
-        [];
+        response.data?.users || response.data?.data || response.data || [];
 
       setUsers(Array.isArray(payload) ? payload : []);
     } catch (error) {
@@ -106,18 +97,11 @@ const DiscoverUsers = () => {
   const handleReset = () => {
     const resetFilters = {
       search: "",
-      state: "",
-      region: "",
-      minAge: "",
-      maxAge: "",
-      gender: "",
-      interest: "",
     };
 
     setFilters(resetFilters);
     fetchUsers(resetFilters);
   };
-
   // --------------------------------------------------
   // Like user
   // --------------------------------------------------
@@ -161,8 +145,7 @@ const DiscoverUsers = () => {
 
       if (error.response?.status === 400) {
         showPopup(
-          error.response?.data?.message ||
-            "You have already liked this user.",
+          error.response?.data?.message || "You have already liked this user.",
         );
       } else {
         showPopup("Unable to like this user. Please try again.");
@@ -180,10 +163,7 @@ const DiscoverUsers = () => {
       return null;
     }
 
-    if (
-      user.photo.startsWith("http://") ||
-      user.photo.startsWith("https://")
-    ) {
+    if (user.photo.startsWith("http://") || user.photo.startsWith("https://")) {
       return user.photo;
     }
 
@@ -212,11 +192,7 @@ const DiscoverUsers = () => {
   // Get location
   // --------------------------------------------------
   const getLocation = (user) => {
-    const parts = [
-      user?.state,
-      user?.region,
-      user?.location,
-    ].filter(Boolean);
+    const parts = [user?.state, user?.region, user?.location].filter(Boolean);
 
     return parts.length > 0 ? parts.join(", ") : "Location unavailable";
   };
@@ -225,12 +201,7 @@ const DiscoverUsers = () => {
   // Render
   // --------------------------------------------------
   if (loading) {
-    return (
-      <Loader
-        message="Finding people for you..."
-        fullScreen={true}
-      />
-    );
+    return <Loader message="Finding people for you..." fullScreen={true} />;
   }
 
   return (
@@ -258,39 +229,6 @@ const DiscoverUsers = () => {
       {/* ------------------------------------------------ */}
       {/* Header */}
       {/* ------------------------------------------------ */}
-      <header className="bg-white border-bottom shadow-sm sticky-top">
-        <div
-          className="mx-auto px-3 px-sm-4 py-3"
-          style={{ maxWidth: "1200px" }}
-        >
-          <div className="d-flex align-items-center justify-content-between">
-            <div>
-              <h4 className="fw-bold text-dark mb-1">
-                Discover People
-              </h4>
-
-              <p
-                className="text-muted mb-0"
-                style={{ fontSize: "0.85rem" }}
-              >
-                Find someone who matches your interests.
-              </p>
-            </div>
-
-            <div
-              className="rounded-circle d-flex align-items-center justify-content-center"
-              style={{
-                width: "42px",
-                height: "42px",
-                backgroundColor: "#f3e4e8",
-                color: "#73112d",
-              }}
-            >
-              <i className="bi bi-compass fs-5"></i>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* ------------------------------------------------ */}
       {/* Main */}
@@ -302,15 +240,17 @@ const DiscoverUsers = () => {
         {/* ------------------------------------------------ */}
         {/* Search / Filter Box */}
         {/* ------------------------------------------------ */}
+        {/* ------------------------------------------------ */}
+        {/* Search / Filter Box */}
+        {/* ------------------------------------------------ */}
         <div className="bg-white rounded-4 shadow-sm border-0 p-3 p-md-4 mb-4">
           <form onSubmit={handleSearch}>
-            {/* Search */}
-            <div className="mb-3">
+            <div className="mb-0">
               <label
                 className="form-label fw-semibold text-dark"
                 style={{ fontSize: "0.8rem" }}
               >
-                Search
+                Search People
               </label>
 
               <div className="input-group">
@@ -324,130 +264,17 @@ const DiscoverUsers = () => {
                   value={filters.search}
                   onChange={handleFilterChange}
                   className="form-control border-start-0"
-                  placeholder="Search by name or username..."
-                />
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="row g-3">
-              {/* State */}
-              <div className="col-12 col-md-6 col-lg-3">
-                <label
-                  className="form-label fw-semibold"
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  State
-                </label>
-
-                <input
-                  type="text"
-                  name="state"
-                  value={filters.state}
-                  onChange={handleFilterChange}
-                  className="form-control rounded-3"
-                  placeholder="e.g. Rivers"
+                  placeholder="Search by username, age, state, region, interest..."
                 />
               </div>
 
-              {/* Region */}
-              <div className="col-12 col-md-6 col-lg-3">
-                <label
-                  className="form-label fw-semibold"
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  Region
-                </label>
-
-                <input
-                  type="text"
-                  name="region"
-                  value={filters.region}
-                  onChange={handleFilterChange}
-                  className="form-control rounded-3"
-                  placeholder="e.g. South-South"
-                />
-              </div>
-
-              {/* Min Age */}
-              <div className="col-6 col-md-3 col-lg-1.5">
-                <label
-                  className="form-label fw-semibold"
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  Min Age
-                </label>
-
-                <input
-                  type="number"
-                  name="minAge"
-                  min="18"
-                  value={filters.minAge}
-                  onChange={handleFilterChange}
-                  className="form-control rounded-3"
-                  placeholder="18"
-                />
-              </div>
-
-              {/* Max Age */}
-              <div className="col-6 col-md-3 col-lg-1.5">
-                <label
-                  className="form-label fw-semibold"
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  Max Age
-                </label>
-
-                <input
-                  type="number"
-                  name="maxAge"
-                  min="18"
-                  value={filters.maxAge}
-                  onChange={handleFilterChange}
-                  className="form-control rounded-3"
-                  placeholder="50"
-                />
-              </div>
-
-              {/* Gender */}
-              <div className="col-12 col-md-6 col-lg-2">
-                <label
-                  className="form-label fw-semibold"
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  Gender
-                </label>
-
-                <select
-                  name="gender"
-                  value={filters.gender}
-                  onChange={handleFilterChange}
-                  className="form-select rounded-3"
-                >
-                  <option value="">Any gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                </select>
-              </div>
-
-              {/* Interest */}
-              <div className="col-12 col-md-6 col-lg-3">
-                <label
-                  className="form-label fw-semibold"
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  Interest
-                </label>
-
-                <input
-                  type="text"
-                  name="interest"
-                  value={filters.interest}
-                  onChange={handleFilterChange}
-                  className="form-control rounded-3"
-                  placeholder="Music, travel, football..."
-                />
-              </div>
+              <small
+                className="text-muted d-block mt-2"
+                style={{ fontSize: "0.72rem" }}
+              >
+                Search for people by username, name, age, state, region, or
+                interest.
+              </small>
             </div>
 
             {/* Buttons */}
@@ -497,10 +324,7 @@ const DiscoverUsers = () => {
           <div>
             <h5 className="fw-bold mb-1">People you may like</h5>
 
-            <span
-              className="text-muted"
-              style={{ fontSize: "0.8rem" }}
-            >
+            <span className="text-muted" style={{ fontSize: "0.8rem" }}>
               {users.length} {users.length === 1 ? "person" : "people"} found
             </span>
           </div>
@@ -529,10 +353,7 @@ const DiscoverUsers = () => {
               const interests = getInterests(user);
 
               return (
-                <div
-                  key={userId}
-                  className="col-12 col-sm-6 col-lg-4"
-                >
+                <div key={userId} className="col-12 col-sm-6 col-lg-4">
                   <div
                     className="card border-0 rounded-4 shadow-sm h-100 overflow-hidden"
                     style={{
@@ -738,14 +559,9 @@ const DiscoverUsers = () => {
               <i className="bi bi-people fs-2"></i>
             </div>
 
-            <h5 className="fw-bold mb-2">
-              No people found
-            </h5>
+            <h5 className="fw-bold mb-2">No people found</h5>
 
-            <p
-              className="text-muted mb-3"
-              style={{ fontSize: "0.85rem" }}
-            >
+            <p className="text-muted mb-3" style={{ fontSize: "0.85rem" }}>
               Try changing your search filters to find more people.
             </p>
 
@@ -874,10 +690,7 @@ const DiscoverUsers = () => {
               </div>
 
               {selectedUser.username && (
-                <div
-                  className="text-muted mb-3"
-                  style={{ fontSize: "0.8rem" }}
-                >
+                <div className="text-muted mb-3" style={{ fontSize: "0.8rem" }}>
                   @{selectedUser.username}
                 </div>
               )}
@@ -887,9 +700,7 @@ const DiscoverUsers = () => {
                 {selectedUser.age && (
                   <div className="col-6">
                     <div className="bg-light rounded-3 p-3">
-                      <small className="text-muted d-block">
-                        Age
-                      </small>
+                      <small className="text-muted d-block">Age</small>
                       <strong>{selectedUser.age}</strong>
                     </div>
                   </div>
@@ -898,9 +709,7 @@ const DiscoverUsers = () => {
                 {selectedUser.gender && (
                   <div className="col-6">
                     <div className="bg-light rounded-3 p-3">
-                      <small className="text-muted d-block">
-                        Gender
-                      </small>
+                      <small className="text-muted d-block">Gender</small>
                       <strong className="text-capitalize">
                         {selectedUser.gender}
                       </strong>
@@ -913,9 +722,7 @@ const DiscoverUsers = () => {
                   selectedUser.location) && (
                   <div className="col-12">
                     <div className="bg-light rounded-3 p-3">
-                      <small className="text-muted d-block">
-                        Location
-                      </small>
+                      <small className="text-muted d-block">Location</small>
                       <strong>
                         <i className="bi bi-geo-alt me-1"></i>
                         {getLocation(selectedUser)}
@@ -928,9 +735,7 @@ const DiscoverUsers = () => {
               {/* Bio */}
               {selectedUser.bio && (
                 <div className="mb-4">
-                  <h6 className="fw-bold mb-2">
-                    About
-                  </h6>
+                  <h6 className="fw-bold mb-2">About</h6>
 
                   <p
                     className="text-muted mb-0"
@@ -947,26 +752,22 @@ const DiscoverUsers = () => {
               {/* Interests */}
               {getInterests(selectedUser).length > 0 && (
                 <div className="mb-4">
-                  <h6 className="fw-bold mb-2">
-                    Interests
-                  </h6>
+                  <h6 className="fw-bold mb-2">Interests</h6>
 
                   <div className="d-flex flex-wrap gap-2">
-                    {getInterests(selectedUser).map(
-                      (interest, index) => (
-                        <span
-                          key={`${interest}-${index}`}
-                          className="badge rounded-pill px-3 py-2"
-                          style={{
-                            backgroundColor: "#f5ecef",
-                            color: "#73112d",
-                            fontSize: "0.75rem",
-                          }}
-                        >
-                          {interest}
-                        </span>
-                      ),
-                    )}
+                    {getInterests(selectedUser).map((interest, index) => (
+                      <span
+                        key={`${interest}-${index}`}
+                        className="badge rounded-pill px-3 py-2"
+                        style={{
+                          backgroundColor: "#f5ecef",
+                          color: "#73112d",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        {interest}
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}
@@ -974,9 +775,7 @@ const DiscoverUsers = () => {
               {/* Relationship preference */}
               {selectedUser.relationshipPreference && (
                 <div className="mb-4">
-                  <h6 className="fw-bold mb-2">
-                    Looking For
-                  </h6>
+                  <h6 className="fw-bold mb-2">Looking For</h6>
 
                   <p
                     className="text-muted mb-0"
@@ -990,9 +789,7 @@ const DiscoverUsers = () => {
               {/* Other profile fields */}
               {selectedUser.education && (
                 <div className="mb-3">
-                  <h6 className="fw-bold mb-1">
-                    Education
-                  </h6>
+                  <h6 className="fw-bold mb-1">Education</h6>
 
                   <p
                     className="text-muted mb-0"
@@ -1005,9 +802,7 @@ const DiscoverUsers = () => {
 
               {selectedUser.occupation && (
                 <div className="mb-4">
-                  <h6 className="fw-bold mb-1">
-                    Occupation
-                  </h6>
+                  <h6 className="fw-bold mb-1">Occupation</h6>
 
                   <p
                     className="text-muted mb-0"
@@ -1023,20 +818,16 @@ const DiscoverUsers = () => {
                 <button
                   type="button"
                   disabled={
-                    likeLoading ===
-                    (selectedUser._id || selectedUser.id)
+                    likeLoading === (selectedUser._id || selectedUser.id)
                   }
-                  onClick={(e) =>
-                    handleLike(selectedUser, e)
-                  }
+                  onClick={(e) => handleLike(selectedUser, e)}
                   className="btn flex-grow-1 rounded-pill text-white py-2 fw-semibold"
                   style={{
                     backgroundColor: "#73112d",
                   }}
                 >
                   <i className="bi bi-heart-fill me-2"></i>
-                  {likeLoading ===
-                  (selectedUser._id || selectedUser.id)
+                  {likeLoading === (selectedUser._id || selectedUser.id)
                     ? "Liking..."
                     : "Like"}
                 </button>
