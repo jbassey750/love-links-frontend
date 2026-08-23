@@ -33,7 +33,7 @@ const NotFound = () => {
             <div className="d-flex align-items-center gap-2 mb-3">
               <span style={{ fontSize: "1.2rem" }}>❤️</span>
               <span className="fw-bold text-uppercase" style={{ color: "#73112d", fontSize: "0.85rem", letterSpacing: "1.5px" }}>
-                Amour
+                Enamora
               </span>
             </div>
 
