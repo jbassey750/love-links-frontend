@@ -18,6 +18,7 @@ import BuyCoins from "../page/user/BuyCoins";
 import DatePlannerPage from "../page/user/DatePlannerPage";
 import MusicPage from "../page/user/MusicPage";
 import DiaryPage from "../page/user/DiaryPage";
+import UserProfile from "../page/user/UserProfile"
 
 import MessagesPage from "../page/moderator/MessagesPage";
 import StatsPage from "../page/moderator/StatsPage";
@@ -68,6 +69,7 @@ function AppRouter() {
         <Route path="my-date" element={<DatePlannerPage />} />
         <Route path="music" element={<MusicPage />} />
         <Route path="diary" element={<DiaryPage />} />
+        <Route path="profile/:userId" element={<UserProfile />} />
         
       </Route>
 
