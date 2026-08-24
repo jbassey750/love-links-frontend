@@ -19,6 +19,7 @@ import DatePlannerPage from "../page/user/DatePlannerPage";
 import MusicPage from "../page/user/MusicPage";
 import DiaryPage from "../page/user/DiaryPage";
 import UserProfile from "../page/user/UserProfile"
+import OTPVerification from "../page/user/OTPVerification";
 
 import MessagesPage from "../page/moderator/MessagesPage";
 import StatsPage from "../page/moderator/StatsPage";
@@ -45,6 +46,7 @@ function AppRouter() {
       <Route path="chat/:chatId" element={<Chat />} />
       <Route path="buy-coins" element={<BuyCoins />} />
       <Route path="*" element={<NotFound />} />
+       <Route path="OTP" element={<OTPVerification />} />
 
       <Route
         path="/moderator/workspace"
@@ -69,8 +71,8 @@ function AppRouter() {
         <Route path="my-date" element={<DatePlannerPage />} />
         <Route path="music" element={<MusicPage />} />
         <Route path="diary" element={<DiaryPage />} />
+        <Route path="profile/me" element={<Profile />} />
         <Route path="profile/:userId" element={<UserProfile />} />
-        
       </Route>
 
       {/* <Route path="*" element={<NotFound />} /> */}

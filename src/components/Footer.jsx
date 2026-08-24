@@ -55,7 +55,7 @@ const Footer = () => {
 
         {/* Profile */}
         <Link
-          to="/profile"
+          to="/profile/me"
           className={`btn d-flex flex-column align-items-center gap-1 text-decoration-none ${
             isActive("/profile") ? "text-danger" : "text-muted"
           }`}
