@@ -25,6 +25,7 @@ import MessagesPage from "../page/moderator/MessagesPage";
 import StatsPage from "../page/moderator/StatsPage";
 
 import AdminDashboard from "../page/admin/AdminDashboard";
+import AdminCreatePage from "../page/admin/AdminCreatePage"
 import FakeDashboard from "../page/admin/fakeuser/FakeDashboard";
 import AdminPendingLikes from "../page/admin/AdminPendingLikes";
 import ADminNotifications from "../page/admin/AdminNotifications";
@@ -38,6 +39,7 @@ function AppRouter() {
       <Route index element={<Login />} />
       <Route path="register" element={<SignUp />} />
       <Route path="admin/dashboard" element={<AdminDashboard />} />
+      <Route path="admin/create-data" element={<AdminCreatePage />} />
       <Route path="/admin/fake-accounts/dashboard" element={<FakeDashboard />} />
       <Route path="/admin/pending-likes" element={<AdminPendingLikes />} />
       <Route path="/admin/matches" element={<AdminMatches />} />

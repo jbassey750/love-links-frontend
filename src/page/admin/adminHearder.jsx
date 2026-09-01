@@ -35,8 +35,14 @@ const AdminNavbar = ({ activeTab, onTabChange, pendingLikesCount = 3 }) => {
     {
       id: "admin-match",
       label: "matches",
-      icon: "bi-bell",
+      icon: "bi-people",
       path: "/admin/matches",
+    },
+    {
+      id: "admin-create-data",
+      label: "Management Center",
+      icon: "bi-plus-circle",
+      path: "/admin/create-data",
     },
   ];
 
