@@ -16,9 +16,16 @@ const MessagesPage = () => {
   const [isWaitingForReply, setIsWaitingForReply] = useState(false);
 
   const [error, setError] = useState("");
+  const [assignmentNotice, setAssignmentNotice] = useState(null);
 
   const socketRef = useRef(null);
   const assignmentRef = useRef(null);
+
+  // =========================================================
+  // AUTO SCROLL REF
+  // =========================================================
+
+  const messagesEndRef = useRef(null);
 
   // =========================================================
   // API + SOCKET URL
@@ -35,6 +42,19 @@ const MessagesPage = () => {
   useEffect(() => {
     assignmentRef.current = assignment;
   }, [assignment]);
+
+  // =========================================================
+  // AUTO SCROLL TO LATEST MESSAGE
+  // =========================================================
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    }
+  }, [messages]);
 
   // =========================================================
   // Get message sender type
@@ -71,11 +91,6 @@ const MessagesPage = () => {
     }
 
     try {
-      console.log("=================================");
-      console.log("LOADING COMPLETE CHAT HISTORY");
-      console.log("Chat ID:", chatId);
-      console.log("=================================");
-
       const response = await api.get(`/messages/${chatId}`);
 
       if (!response.data?.success) {
@@ -92,12 +107,6 @@ const MessagesPage = () => {
         createdAt: message.createdAt || new Date().toISOString(),
       }));
 
-      console.log(
-        "Complete chat history loaded:",
-        formattedMessages.length,
-        "messages",
-      );
-
       return formattedMessages;
     } catch (error) {
       console.error("Failed to load chat history:", error);
@@ -111,29 +120,15 @@ const MessagesPage = () => {
 
   const determineWaitingState = (chatMessages) => {
     if (!chatMessages || chatMessages.length === 0) {
-      /*
-       * If there are no messages yet, allow the moderator
-       * to respond.
-       */
       return false;
     }
 
     const lastMessage = chatMessages[chatMessages.length - 1];
 
-    /*
-     * If the latest message belongs to the fake account,
-     * the moderator has already replied.
-     *
-     * Therefore the moderator must wait for the real user.
-     */
     if (lastMessage.senderType === "fake") {
       return true;
     }
 
-    /*
-     * Latest message is from the real/premium user.
-     * Moderator can respond.
-     */
     return false;
   };
 
@@ -154,44 +149,22 @@ const MessagesPage = () => {
     }
 
     try {
-      console.log("=================================");
-      console.log("ACTIVATING MODERATOR ASSIGNMENT");
-      console.log("Assignment ID:", incomingAssignment.assignmentId);
-      console.log("Chat ID:", chatId);
-      console.log("=================================");
-
-      /*
-       * Set assignment first so the UI knows which
-       * conversation is currently active.
-       */
-      setAssignment({
-        ...incomingAssignment,
-        chatId,
-      });
-
-      assignmentRef.current = {
+      const updatedAssignment = {
         ...incomingAssignment,
         chatId,
       };
 
-      /*
-       * Always fetch the complete conversation.
-       *
-       * We do NOT simply append the incoming socket message.
-       */
-      const history = await loadChatHistory(chatId, incomingAssignment);
+      setAssignment(updatedAssignment);
+
+      assignmentRef.current = updatedAssignment;
+
+      const history = await loadChatHistory(chatId, updatedAssignment);
 
       setMessages(history);
 
-      /*
-       * Decide whether moderator can reply based on
-       * the LAST message in the complete conversation.
-       */
       const shouldWait = determineWaitingState(history);
 
       setIsWaitingForReply(shouldWait);
-
-      console.log("Moderator waiting:", shouldWait);
     } catch (error) {
       console.error("Unable to activate assignment:", error);
 
@@ -230,6 +203,8 @@ const MessagesPage = () => {
         console.log("========== MODERATOR PROFILE ==========");
         console.log("Moderator:", moderator);
         console.log("Moderator ID:", moderator._id);
+        console.log("Moderator Name:", moderator.fullName);
+        console.log("Moderator Username:", moderator.username);
         console.log("Role:", moderator.role);
         console.log("======================================");
 
@@ -251,11 +226,7 @@ const MessagesPage = () => {
         socketRef.current = socket;
 
         socket.on("connect", () => {
-          console.log("=================================");
           console.log("MODERATOR SOCKET CONNECTED");
-          console.log("Socket ID:", socket.id);
-          console.log("Moderator ID:", moderator._id);
-          console.log("=================================");
 
           socket.emit("join-user", moderator._id.toString());
         });
@@ -271,19 +242,7 @@ const MessagesPage = () => {
         const handleFakeAccountMessage = async (data) => {
           if (!data) return;
 
-          console.log("=================================");
-          console.log("🔥 NEW MESSAGE FOR MODERATOR");
-          console.log("Assignment:", data.assignmentId);
-          console.log("Chat:", data.chatId);
-          console.log("Real User:", data.realUser);
-          console.log("Fake User:", data.fakeUser);
-          console.log("Message:", data.message);
-          console.log("=================================");
-
           try {
-            /*
-             * Build the new assignment from the socket event.
-             */
             const incomingAssignment = {
               assignmentId: data.assignmentId,
               chatId: data.chatId,
@@ -296,20 +255,8 @@ const MessagesPage = () => {
                 data.message?.createdAt || new Date().toISOString(),
             };
 
-            /*
-             * IMPORTANT:
-             *
-             * Do not append only data.message.
-             *
-             * Fetch the complete conversation so the
-             * moderator always sees the full chat.
-             */
             await activateAssignment(incomingAssignment);
 
-            /*
-             * A real user has just sent a new message.
-             * Therefore moderator can respond.
-             */
             setIsWaitingForReply(false);
           } catch (error) {
             console.error("Error handling fake-account-message:", error);
@@ -342,9 +289,6 @@ const MessagesPage = () => {
 
           const messageChatId = message.chat?._id || message.chat;
 
-          /*
-           * Ignore messages from other conversations.
-           */
           if (
             !messageChatId ||
             !currentChatId ||
@@ -353,13 +297,7 @@ const MessagesPage = () => {
             return;
           }
 
-          console.log("📨 New message for current moderator chat:", message);
-
           try {
-            /*
-             * Reload the complete history instead of
-             * adding only this one message.
-             */
             const history = await loadChatHistory(
               currentChatId,
               currentAssignment,
@@ -367,10 +305,6 @@ const MessagesPage = () => {
 
             setMessages(history);
 
-            /*
-             * Determine state from the actual latest
-             * message in the database.
-             */
             const shouldWait = determineWaitingState(history);
 
             setIsWaitingForReply(shouldWait);
@@ -382,12 +316,82 @@ const MessagesPage = () => {
         socket.on("new-message", handleNewMessage);
 
         // =====================================================
+        // ASSIGNMENT EXPIRED
+        // =====================================================
+        const handleAssignmentExpired = (data) => {
+          if (!data) return;
+
+          console.log("⏰ Assignment expired:", data);
+
+          const currentAssignment = assignmentRef.current;
+
+          if (
+            currentAssignment?.assignmentId &&
+            data.assignmentId &&
+            currentAssignment.assignmentId.toString() !==
+              data.assignmentId.toString()
+          ) {
+            return;
+          }
+
+          setAssignmentNotice({
+            type: "expired",
+            message:
+              data.message ||
+              "Your chat session has expired and this conversation has been reassigned.",
+          });
+
+          // Remove the expired assignment from this moderator
+          setAssignment(null);
+          assignmentRef.current = null;
+          setMessages([]);
+          setIsWaitingForReply(true);
+        };
+
+        socket.on("assignment-expired", handleAssignmentExpired);
+
+        // =====================================================
+        // ASSIGNMENT TRANSFERRED / REASSIGNED
+        // =====================================================
+        const handleAssignmentTransferred = async (data) => {
+          if (!data) return;
+
+          console.log("🔄 Assignment transferred:", data);
+
+          const incomingAssignment = {
+            assignmentId: data.assignmentId,
+            chatId: data.chatId?._id || data.chatId,
+            fakeUser: data.fakeUser,
+            realUser: data.realUser,
+            status: "active",
+            assignedAt: data.assignedAt,
+            expiresAt: data.expiresAt,
+          };
+
+          try {
+            setAssignmentNotice({
+              type: "transferred",
+              message:
+                "A conversation has been assigned to you. You have 5 minutes to respond.",
+            });
+
+            await activateAssignment(incomingAssignment);
+
+            setTimeout(() => {
+              setAssignmentNotice(null);
+            }, 4000);
+          } catch (error) {
+            console.error("Error activating transferred assignment:", error);
+          }
+        };
+
+        socket.on("assignment-transferred", handleAssignmentTransferred);
+
+        // =====================================================
         // LOAD EXISTING MODERATOR ASSIGNMENTS
         // =====================================================
 
         const assignmentsResponse = await api.get("/moderator/assignments");
-
-        console.log("Moderator assignments:", assignmentsResponse.data);
 
         if (!mounted) return;
 
@@ -399,36 +403,14 @@ const MessagesPage = () => {
 
         const assignedChats = assignmentsResponse.data.chats || [];
 
-        /*
-         * There is an active assignment.
-         */
         if (assignedChats.length > 0) {
-          const firstAssignment = assignedChats[0];
-
-          console.log("Existing moderator assignment:", firstAssignment);
-
-          /*
-           * IMPORTANT:
-           *
-           * activateAssignment() loads the ENTIRE
-           * conversation and determines whether the
-           * moderator should be waiting.
-           *
-           * This fixes the reload problem.
-           */
-          await activateAssignment(firstAssignment);
+          await activateAssignment(assignedChats[0]);
         } else {
-          /*
-           * No active assignment.
-           */
           setAssignment(null);
           assignmentRef.current = null;
 
           setMessages([]);
 
-          /*
-           * No assignment means moderator waits.
-           */
           setIsWaitingForReply(true);
         }
       } catch (err) {
@@ -454,7 +436,14 @@ const MessagesPage = () => {
       mounted = false;
 
       if (socketRef.current) {
-        console.log("Disconnecting moderator socket...");
+        console.log("🔌 Cleaning up moderator socket...");
+
+        socketRef.current.off("fake-account-message");
+        socketRef.current.off("new-message");
+        socketRef.current.off("assignment-transferred");
+        socketRef.current.off("assignment-expired");
+        socketRef.current.off("connect");
+        socketRef.current.off("connect_error");
 
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -483,20 +472,11 @@ const MessagesPage = () => {
       setIsSubmitting(true);
       setError("");
 
-      console.log("=================================");
-      console.log("MODERATOR SENDING MESSAGE");
-      console.log("Assignment ID:", assignment.assignmentId);
-      console.log("Chat ID:", assignment.chatId);
-      console.log("Message:", text);
-      console.log("=================================");
-
       const response = await api.post("/moderator/reply", {
         assignmentId: assignment.assignmentId,
         message: text.trim(),
         messageType: "text",
       });
-
-      console.log("Moderator reply response:", response.data);
 
       if (!response.data?.success) {
         throw new Error(response.data?.message || "Failed to send message.");
@@ -521,26 +501,17 @@ const MessagesPage = () => {
           ...prev,
           {
             ...sentMessage,
+
+            // Keep this as fake because the moderator
+            // is replying AS the fake profile.
             senderType: "fake",
+
             createdAt: sentMessage?.createdAt || new Date().toISOString(),
           },
         ];
       });
 
-      /*
-       * IMPORTANT:
-       *
-       * The moderator has now replied.
-       *
-       * Lock the composer.
-       */
       setIsWaitingForReply(true);
-
-      /*
-       * Keep the assignment reference internally,
-       * but the UI will show WaitingOverlay instead
-       * of the conversation.
-       */
     } catch (err) {
       console.error("Moderator send message error:", err);
 
@@ -578,16 +549,47 @@ const MessagesPage = () => {
 
   // =========================================================
   // WAITING STATE
-  //
-  // This is important.
-  //
-  // After moderator replies, the chat disappears and
-  // WaitingOverlay remains until a NEW user message arrives.
   // =========================================================
 
   if (!assignment || isWaitingForReply) {
     return (
       <div className="container-fluid py-4">
+        {assignmentNotice && (
+          <div
+            className="position-fixed top-0 start-50 translate-middle-x mt-4"
+            style={{
+              zIndex: 9999,
+              width: "min(90%, 500px)",
+            }}
+          >
+            <div
+              className="card shadow-lg border-0"
+              style={{
+                background: "#6f42c1",
+                color: "#fff",
+                borderRadius: "12px",
+              }}
+            >
+              <div className="card-body p-4 text-center">
+                <h5 className="fw-bold mb-2">
+                  {assignmentNotice.type === "expired"
+                    ? "Chat Session Expired"
+                    : "New Conversation Assigned"}
+                </h5>
+
+                <p className="mb-3">{assignmentNotice.message}</p>
+
+                <button
+                  type="button"
+                  className="btn btn-light px-4 fw-semibold"
+                  onClick={() => setAssignmentNotice(null)}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <WaitingOverlay />
       </div>
     );
@@ -599,6 +601,43 @@ const MessagesPage = () => {
 
   return (
     <div className="container-fluid py-4">
+      {assignmentNotice && (
+        <div
+          className="position-fixed top-0 start-50 translate-middle-x mt-4"
+          style={{
+            zIndex: 9999,
+            width: "min(90%, 500px)",
+          }}
+        >
+          <div
+            className="card shadow-lg border-0"
+            style={{
+              background: "#6f42c1",
+              color: "#fff",
+              borderRadius: "12px",
+            }}
+          >
+            <div className="card-body p-4 text-center">
+              <h5 className="fw-bold mb-2">
+                {assignmentNotice.type === "expired"
+                  ? "Chat Session Expired"
+                  : "New Conversation Assigned"}
+              </h5>
+
+              <p className="mb-3">{assignmentNotice.message}</p>
+
+              <button
+                type="button"
+                className="btn btn-light px-4 fw-semibold"
+                onClick={() => setAssignmentNotice(null)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && <div className="alert alert-danger">{error}</div>}
 
       <AssignmentCard assignment={assignment} />
@@ -626,12 +665,15 @@ const MessagesPage = () => {
           {messages.map((msg, index) => {
             const isFakeMessage = msg.senderType === "fake";
 
+            /*
+             * Try to get the moderator name from
+             * whichever sender structure your API returns.
+             */
+            const moderatorName =
+              msg.moderator?.fullName || msg.moderator?.username || "Moderator";
+
             return (
               <React.Fragment key={msg._id || `message-${index}`}>
-                {/* -----------------------------------------
-                    Conversation break
-                ----------------------------------------- */}
-
                 {index === 0 && messages.length > 0 && (
                   <div className="text-center mb-3">
                     <small className="text-muted">Conversation</small>
@@ -655,21 +697,39 @@ const MessagesPage = () => {
                   >
                     <div>{msg.message}</div>
 
-                    <small
-                      className={isFakeMessage ? "text-light" : "text-muted"}
+                    {/* =================================
+                        MODERATOR NAME + TIME
+                    ================================= */}
+
+                    <div
+                      className={`d-flex justify-content-end align-items-center gap-2 mt-1 ${
+                        isFakeMessage ? "text-light" : "text-muted"
+                      }`}
                     >
-                      {msg.createdAt
-                        ? new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : ""}
-                    </small>
+                      {isFakeMessage && (
+                        <small className="fw-semibold">{moderatorName}</small>
+                      )}
+
+                      <small>
+                        {msg.createdAt
+                          ? new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </small>
+                    </div>
                   </div>
                 </div>
               </React.Fragment>
             );
           })}
+
+          {/* ============================================
+              AUTO SCROLL TARGET
+          ============================================ */}
+
+          <div ref={messagesEndRef} />
         </div>
 
         {/* ============================================

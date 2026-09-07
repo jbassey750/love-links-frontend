@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import AdminNavbar from "./adminHearder";
+import api from "../../api/axios";
 
-const AdminCreatePage = () => {
+const AdminCreateData = () => {
   const [activeTab, setActiveTab] = useState("premium");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
 
   // ==============================
   // USER FORM
@@ -84,45 +87,46 @@ const AdminCreatePage = () => {
   const handleUserSubmit = async (e) => {
     e.preventDefault();
 
-    const formData = new FormData();
+    setIsSubmitting(true);
+    setFeedback({ type: "", message: "" });
 
-    Object.entries(userForm).forEach(([key, value]) => {
-      if (key === "interests") {
-        const interestsArray = value
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean);
+    const endpointByTab = {
+      premium: "/admin/create-premium-user",
+      fake: "/admin/fake-accounts",
+      moderator: "/admin/moderators",
+    };
 
-        formData.append("interests", JSON.stringify(interestsArray));
-      } else if (value !== null && value !== "") {
-        formData.append(key, value);
-      }
-    });
+    const payload = {
+      ...userForm,
+      interests: userForm.interests
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      lookingFor: userForm.lookingFor
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    };
 
-    console.log(
-      activeTab === "premium"
-        ? "Creating Premium User..."
-        : "Creating Moderator..."
-    );
+    delete payload.photo;
 
-    // ==========================================
-    // ADD YOUR AXIOS REQUEST HERE
-    // ==========================================
-
-    // Example:
-    //
-    // const endpoint =
-    //   activeTab === "premium"
-    //     ? "/admin/create-premium-user"
-    //     : "/admin/moderators";
-    //
-    // await axios.post(endpoint, formData, {
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //   },
-    // });
-
-    console.log("User data:", Object.fromEntries(formData.entries()));
+    try {
+      const response = await api.post(endpointByTab[activeTab], payload);
+      setFeedback({
+        type: "success",
+        message: response.data?.message || "Account created successfully.",
+      });
+      resetUserForm();
+    } catch (error) {
+      setFeedback({
+        type: "danger",
+        message:
+          error.response?.data?.message ||
+          "Unable to create this account. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ==============================
@@ -131,12 +135,16 @@ const AdminCreatePage = () => {
   const handlePackageSubmit = async (e) => {
     e.preventDefault();
 
+    setIsSubmitting(true);
+    setFeedback({ type: "", message: "" });
+
     const payload = {
       name: packageForm.name,
       type: packageForm.type,
       price: Number(packageForm.price),
       currency: packageForm.currency,
       description: packageForm.description,
+      isActive: packageForm.isActive,
     };
 
     if (packageForm.type === "points") {
@@ -146,13 +154,23 @@ const AdminCreatePage = () => {
       payload.durationUnit = packageForm.durationUnit;
     }
 
-    console.log("Package payload:", payload);
-
-    // ==========================================
-    // ADD YOUR AXIOS REQUEST HERE
-    // ==========================================
-
-    // await axios.post("/admin/packages", payload);
+    try {
+      const response = await api.post("/admin/packages", payload);
+      setFeedback({
+        type: "success",
+        message: response.data?.message || "Package created successfully.",
+      });
+      resetPackageForm();
+    } catch (error) {
+      setFeedback({
+        type: "danger",
+        message:
+          error.response?.data?.message ||
+          "Unable to create this package. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ==============================
@@ -198,7 +216,7 @@ const AdminCreatePage = () => {
   };
 
   return (
-    <div className="bg-light min-vh-100 py-lg-5">
+    <div className="bg-light min-vh-100">
       <div className="">
 
         {/* ==========================================
@@ -206,6 +224,12 @@ const AdminCreatePage = () => {
         ========================================== */}
 
         <AdminNavbar />
+
+        {feedback.message && (
+          <div className={`alert alert-${feedback.type} mt-3`} role="alert">
+            {feedback.message}
+          </div>
+        )}
 
 
         {/* ==========================================
@@ -216,7 +240,7 @@ const AdminCreatePage = () => {
             <div className="row g-2">
 
               {/* PREMIUM TAB */}
-              <div className="col-12 col-md-4">
+              <div className="col-12 col-md-3">
                 <button
                   type="button"
                   onClick={() => setActiveTab("premium")}
@@ -245,7 +269,7 @@ const AdminCreatePage = () => {
               </div>
 
               {/* MODERATOR TAB */}
-              <div className="col-12 col-md-4">
+              <div className="col-12 col-md-3">
                 <button
                   type="button"
                   onClick={() => setActiveTab("moderator")}
@@ -273,8 +297,33 @@ const AdminCreatePage = () => {
                 </button>
               </div>
 
+              {/* FAKE ACCOUNT TAB */}
+              <div className="col-12 col-md-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("fake")}
+                  className={`btn w-100 rounded-3 py-3 border-0 ${
+                    activeTab === "fake"
+                      ? "bg-dark text-white shadow-sm"
+                      : "bg-light text-dark"
+                  }`}
+                >
+                  <div className="fs-4 mb-1">🎭</div>
+                  <div className="fw-bold">Fake Account</div>
+                  <small
+                    className={
+                      activeTab === "fake"
+                        ? "text-white-50"
+                        : "text-secondary"
+                    }
+                  >
+                    Create managed account
+                  </small>
+                </button>
+              </div>
+
               {/* PACKAGE TAB */}
-              <div className="col-12 col-md-4">
+              <div className="col-12 col-md-3">
                 <button
                   type="button"
                   onClick={() => setActiveTab("package")}
@@ -310,7 +359,8 @@ const AdminCreatePage = () => {
             PREMIUM USER / MODERATOR
         ===================================================== */}
         {(activeTab === "premium" ||
-          activeTab === "moderator") && (
+          activeTab === "moderator" ||
+          activeTab === "fake") && (
           <div className="row g-4">
 
             {/* FORM */}
@@ -341,7 +391,9 @@ const AdminCreatePage = () => {
                       <h4 className="fw-bold mb-1">
                         {activeTab === "premium"
                           ? "Create Premium User"
-                          : "Create Moderator"}
+                          : activeTab === "fake"
+                            ? "Create Fake Account"
+                            : "Create Moderator"}
                       </h4>
 
                       <p className="text-secondary mb-0">
@@ -1260,4 +1312,4 @@ const AdminCreatePage = () => {
   );
 };
 
-export default AdminCreatePage;
+export default AdminCreateData;

@@ -20,6 +20,14 @@ const Login = () => {
     try {
       const response = await api.post("/auth/login", { email, password });
 
+      // If OTP verification is required, go there first — don't save token/redirect yet
+      if (response.data.requiresOTP) {
+        navigate("/otp-verification", {
+          state: { email: response.data.email, userId: response.data.userId },
+        });
+        return;
+      }
+
       // Save access token
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
@@ -31,15 +39,25 @@ const Login = () => {
       const user = response.data.user;
 
       if (user?.role === "moderator") {
-        navigate("/moderator/workspace"); 
+        navigate("/moderator/workspace");
       } else if (user?.role === "admin") {
         navigate("/admin/dashboard");
       } else if (user?.accountType === "fake") {
-        navigate("/admin/fake-accounts/dashboard"); 
+        navigate("/admin/fake-accounts/dashboard");
       } else {
         navigate("/discover");
       }
     } catch (err) {
+      if (err.response?.status === 429 && err.response?.data?.requiresOTP) {
+        navigate("/otp-verification", {
+          state: {
+            email: err.response.data.email,
+            userId: err.response.data.userId,
+          },
+        });
+        return;
+      }
+
       setError(
         err.response?.data?.message ||
           "Login failed. Please check your credentials.",

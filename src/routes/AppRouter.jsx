@@ -7,7 +7,7 @@ import Login from "../page/Login";
 import SignUp from "../page/SignUp";
 
 import Home from "../page/Home";
-import DiscoverUsers from "../page/DiscoverUsers"
+import DiscoverUsers from "../page/DiscoverUsers";
 import Matches from "../page/Matches";
 import ConversationsList from "../page/ConversationsList";
 import Chat from "../page/Chat";
@@ -15,17 +15,18 @@ import Profile from "../page/Profile";
 import Notifications from "../page/user/Notifications";
 import NotFound from "../page/user/NotFound";
 import BuyCoins from "../page/user/BuyCoins";
+import PaymentSuccess from "../page/user/PaymentSuccess";
 import DatePlannerPage from "../page/user/DatePlannerPage";
 import MusicPage from "../page/user/MusicPage";
 import DiaryPage from "../page/user/DiaryPage";
-import UserProfile from "../page/user/UserProfile"
+import UserProfile from "../page/user/UserProfile";
 import OTPVerification from "../page/user/OTPVerification";
 
 import MessagesPage from "../page/moderator/MessagesPage";
 import StatsPage from "../page/moderator/StatsPage";
 
 import AdminDashboard from "../page/admin/AdminDashboard";
-import AdminCreatePage from "../page/admin/AdminCreatePage"
+import AdminCreateData from "../page/admin/AdminCreateData";
 import FakeDashboard from "../page/admin/fakeuser/FakeDashboard";
 import AdminPendingLikes from "../page/admin/AdminPendingLikes";
 import ADminNotifications from "../page/admin/AdminNotifications";
@@ -39,16 +40,20 @@ function AppRouter() {
       <Route index element={<Login />} />
       <Route path="register" element={<SignUp />} />
       <Route path="admin/dashboard" element={<AdminDashboard />} />
-      <Route path="admin/create-data" element={<AdminCreatePage />} />
-      <Route path="/admin/fake-accounts/dashboard" element={<FakeDashboard />} />
+      <Route path="admin/create-data" element={<AdminCreateData />} />
+      <Route
+        path="/admin/fake-accounts/dashboard"
+        element={<FakeDashboard />}
+      />
       <Route path="/admin/pending-likes" element={<AdminPendingLikes />} />
       <Route path="/admin/matches" element={<AdminMatches />} />
       <Route path="/admin/notifications" element={<ADminNotifications />} />
       <Route path="/admin/chats/:chatId" element={<AdminChat />} />
       <Route path="chat/:chatId" element={<Chat />} />
       <Route path="buy-coins" element={<BuyCoins />} />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="*" element={<NotFound />} />
-       <Route path="OTP" element={<OTPVerification />} />
+      <Route path="otp-verification" element={<OTPVerification />} />
 
       <Route
         path="/moderator/workspace"

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../api/axios";
 
 const OTPVerification = () => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -6,8 +8,21 @@ const OTPVerification = () => {
   const [canResend, setCanResend] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const inputRefs = useRef([]);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Pulled from login page redirect: navigate("/otp-verification", { state: { userId, email } })
+  const { userId, email } = location.state || {};
+
+  // Redirect back to login if someone lands here without going through login first
+  useEffect(() => {
+    if (!userId) {
+      navigate("/");
+    }
+  }, [userId, navigate]);
 
   // Resend Countdown Timer
   useEffect(() => {
@@ -31,7 +46,6 @@ const OTPVerification = () => {
     newOtp[index] = value.substring(value.length - 1);
     setOtp(newOtp);
 
-    // Focus next box
     if (value && index < 5) {
       inputRefs.current[index + 1].focus();
     }
@@ -63,24 +77,66 @@ const OTPVerification = () => {
     }
   };
 
-  const handleVerify = (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
     const fullOtp = otp.join("");
     if (fullOtp.length < 6) return;
 
     setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
+    setErrorMessage("");
+
+    try {
+      const response = await api.post("/otp/verify", {
+        userId,
+        otp: fullOtp,
+      });
+
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+
       setSuccessMessage("Verification successful!");
-    }, 1200);
+
+      // Redirect based on user role, same logic as login
+      const user = response.data.user;
+      setTimeout(() => {
+        if (user?.role === "moderator") {
+          navigate("/moderator/workspace");
+        } else if (user?.role === "admin") {
+          navigate("/admin/dashboard");
+        } else if (user?.accountType === "fake") {
+          navigate("/admin/fake-accounts/dashboard");
+        } else {
+          navigate("/discover");
+        }
+      }, 800);
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.message || "Invalid or expired code. Please try again."
+      );
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0].focus();
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (!canResend) return;
+
+    try {
+      // Re-triggers OTP generation on the backend (adjust endpoint if you have a dedicated one)
+      await api.post("/otp/send", { userId });
+      setSuccessMessage("A new code has been sent.");
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.message || "Couldn't resend code. Try again shortly."
+      );
+    }
+
     setOtp(["", "", "", "", "", ""]);
     setTimer(30);
     setCanResend(false);
-    setSuccessMessage("");
     inputRefs.current[0].focus();
   };
 
@@ -127,7 +183,8 @@ const OTPVerification = () => {
               </div>
               <h3 className="fw-bold text-dark mb-2">Verification Code</h3>
               <p className="text-muted small mb-0 px-2">
-                Please enter the 6-digit security PIN sent to your phone number or email address.
+                Please enter the 6-digit security PIN sent to{" "}
+                {email ? <strong>{email}</strong> : "your email address"}.
               </p>
             </div>
 
@@ -136,6 +193,14 @@ const OTPVerification = () => {
               <div className="alert alert-success border-0 text-center small rounded-3 py-2.5 mb-4 shadow-sm">
                 <i className="bi bi-check-circle-fill me-1"></i>
                 {successMessage}
+              </div>
+            )}
+
+            {/* Error Alert */}
+            {errorMessage && (
+              <div className="alert alert-danger border-0 text-center small rounded-3 py-2.5 mb-4 shadow-sm">
+                <i className="bi bi-exclamation-circle-fill me-1"></i>
+                {errorMessage}
               </div>
             )}
 

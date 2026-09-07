@@ -32,9 +32,7 @@ const BuyCoins = () => {
         setLoadingPackages(true);
         setPackageError("");
 
-        const response = await api.get(
-          "packages"
-        );
+        const response = await api.get("packages");
 
         console.log("Packages response:", response.data);
 
@@ -57,18 +55,15 @@ const BuyCoins = () => {
         */
 
         const fetchedPackages =
-          response.data?.packages ||
-          response.data?.data ||
-          [];
+          response.data?.packages || response.data?.data || [];
 
         setPackages(Array.isArray(fetchedPackages) ? fetchedPackages : []);
-
       } catch (error) {
         console.error("Failed to fetch packages:", error);
 
         setPackageError(
           error.response?.data?.message ||
-          "Unable to load packages. Please try again."
+            "Unable to load packages. Please try again.",
         );
 
         setPackages([]);
@@ -91,38 +86,31 @@ const BuyCoins = () => {
   // ============================================================
   // CONFIRM PURCHASE
   // ============================================================
-  const handleConfirmPurchase = (paymentMethod) => {
+  // ============================================================
+  // CONFIRM PURCHASE
+  // ============================================================
+  const handleConfirmPurchase = async (paymentMethod) => {
     setIsProcessing(true);
 
-    // Simulated API response
-    setTimeout(() => {
+    try {
+      const response = await api.post("/payments/checkout", {
+        packageId: selectedPkg._id,
+      });
+
+      if (response.data.checkoutUrl) {
+        // Redirect to Flutterwave's hosted payment page
+        window.location.href = response.data.checkoutUrl;
+      } else {
+        setIsProcessing(false);
+        setShowSummaryModal(false);
+        setResultModalState({ isOpen: true, isSuccess: false });
+      }
+    } catch (error) {
+      console.error("Checkout initialization failed:", error);
       setIsProcessing(false);
       setShowSummaryModal(false);
-
-      const isSuccess = Math.random() > 0.1;
-
-      if (isSuccess) {
-        /*
-          Only add points when the package actually
-          contains points.
-        */
-        if (selectedPkg?.points) {
-          setUserBalance(
-            (prev) => prev + Number(selectedPkg.points)
-          );
-        }
-
-        setResultModalState({
-          isOpen: true,
-          isSuccess: true,
-        });
-      } else {
-        setResultModalState({
-          isOpen: true,
-          isSuccess: false,
-        });
-      }
-    }, 1500);
+      setResultModalState({ isOpen: true, isSuccess: false });
+    }
   };
 
   // ============================================================
@@ -223,15 +211,9 @@ const BuyCoins = () => {
               border: "1px solid #F5D0D8",
             }}
           >
-            <i
-              className="bi bi-coin"
-              style={{ color: "#D97706" }}
-            ></i>
+            <i className="bi bi-coin" style={{ color: "#D97706" }}></i>
 
-            <span
-              className="fw-bold text-dark"
-              style={{ fontSize: "0.85rem" }}
-            >
+            <span className="fw-bold text-dark" style={{ fontSize: "0.85rem" }}>
               Balance:{" "}
               <span
                 style={{
@@ -278,8 +260,8 @@ const BuyCoins = () => {
               maxWidth: "520px",
             }}
           >
-            Choose a package to continue direct messaging
-            your matches instantly without interruptions.
+            Choose a package to continue direct messaging your matches instantly
+            without interruptions.
           </p>
         </div>
 
@@ -314,9 +296,7 @@ const BuyCoins = () => {
               ></i>
             </div>
 
-            <h5 className="fw-bold text-dark">
-              No packages available
-            </h5>
+            <h5 className="fw-bold text-dark">No packages available</h5>
 
             <p className="text-muted mb-0">
               Please check back later for available packages.
@@ -330,24 +310,17 @@ const BuyCoins = () => {
             {packages
               .filter((pkg) => pkg.isActive === true)
               .map((pkg, idx) => (
-                <div
-                  key={pkg._id || idx}
-                  className="col-12 col-md-6"
-                >
+                <div key={pkg._id || idx} className="col-12 col-md-6">
                   <div
                     className={`card rounded-4 p-4 h-100 position-relative bg-white border-0 transition-all ${
-                      pkg.popular
-                        ? "shadow-lg"
-                        : "shadow-sm"
+                      pkg.popular ? "shadow-lg" : "shadow-sm"
                     }`}
                     style={{
-                      outline:
-                        pkg.popular
-                          ? "2px solid #73112D"
-                          : "1px solid #EFEAE4",
+                      outline: pkg.popular
+                        ? "2px solid #73112D"
+                        : "1px solid #EFEAE4",
                       outlineOffset: "-1px",
-                      transition:
-                        "transform 0.2s ease, box-shadow 0.2s ease",
+                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
                     }}
                   >
                     {/* Popular Badge */}
@@ -367,11 +340,9 @@ const BuyCoins = () => {
                     )}
 
                     <div className="d-flex flex-column h-100 justify-content-between">
-
                       <div>
                         {/* Name + Price */}
                         <div className="d-flex justify-content-between align-items-baseline mb-2">
-
                           <h5 className="fw-bold text-dark m-0 fs-5">
                             {pkg.name}
                           </h5>
@@ -388,13 +359,10 @@ const BuyCoins = () => {
                               {pkg.currency || "USD"}
                             </span>
                           </div>
-
                         </div>
 
                         {/* Package Type / Points */}
-                        <div
-                          className="d-flex align-items-center gap-2 mb-3 bg-light rounded-3 p-2 border"
-                        >
+                        <div className="d-flex align-items-center gap-2 mb-3 bg-light rounded-3 p-2 border">
                           <div
                             className="rounded-circle d-flex align-items-center justify-content-center"
                             style={{
@@ -429,8 +397,8 @@ const BuyCoins = () => {
                                 {pkg.duration}{" "}
                                 <span className="fw-normal text-muted fs-6">
                                   {pkg.durationUnit || "days"}
-                                </span>
-                                {" "}Free Chat
+                                </span>{" "}
+                                Free Chat
                               </>
                             )}
                           </span>
@@ -451,27 +419,18 @@ const BuyCoins = () => {
                       {/* Select Button */}
                       <button
                         type="button"
-                        onClick={() =>
-                          handleOpenCheckout(pkg)
-                        }
+                        onClick={() => handleOpenCheckout(pkg)}
                         className="btn w-100 rounded-pill fw-bold text-white shadow-sm py-2.5 d-flex align-items-center justify-content-center gap-2"
                         style={{
-                          backgroundColor:
-                            pkg.popular
-                              ? "#73112D"
-                              : "#1E293B",
+                          backgroundColor: pkg.popular ? "#73112D" : "#1E293B",
                           fontSize: "0.9rem",
-                          transition:
-                            "opacity 0.2s ease",
+                          transition: "opacity 0.2s ease",
                         }}
                       >
-                        <span>
-                          Select Package
-                        </span>
+                        <span>Select Package</span>
 
                         <i className="bi bi-arrow-right fs-6"></i>
                       </button>
-
                     </div>
                   </div>
                 </div>
@@ -483,9 +442,7 @@ const BuyCoins = () => {
       {/* Modals */}
       <OrderSummaryModal
         isOpen={showSummaryModal}
-        onClose={() =>
-          setShowSummaryModal(false)
-        }
+        onClose={() => setShowSummaryModal(false)}
         packageData={selectedPkg}
         onConfirm={handleConfirmPurchase}
         isProcessing={isProcessing}
