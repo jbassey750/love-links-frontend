@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import AdminNavbar from "./adminHearder";
 import api from "../../api/axios";
 
@@ -96,22 +96,29 @@ const AdminCreateData = () => {
       moderator: "/admin/moderators",
     };
 
-    const payload = {
-      ...userForm,
-      interests: userForm.interests
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      lookingFor: userForm.lookingFor
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
-    };
+    const formData = new FormData();
+    const interests = userForm.interests
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const lookingFor = userForm.lookingFor
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
 
-    delete payload.photo;
+    Object.entries({ ...userForm, interests, lookingFor }).forEach(
+      ([key, value]) => {
+        if (value !== null && value !== "") {
+          formData.append(
+            key,
+            Array.isArray(value) ? JSON.stringify(value) : value,
+          );
+        }
+      },
+    );
 
     try {
-      const response = await api.post(endpointByTab[activeTab], payload);
+      const response = await api.post(endpointByTab[activeTab], formData);
       setFeedback({
         type: "success",
         message: response.data?.message || "Account created successfully.",
@@ -769,15 +776,21 @@ const AdminCreateData = () => {
 
                       <button
                         type="submit"
+                        disabled={isSubmitting}
                         className={`btn rounded-3 px-4 py-2 fw-semibold ${
                           activeTab === "premium"
                             ? "btn-warning"
                             : "btn-primary"
                         }`}
                       >
-                        {activeTab === "premium"
-                          ? "👑 Create Premium User"
-                          : "🛡️ Create Moderator"}
+                        {isSubmitting
+                          ? "Creating..."
+                          : activeTab === "premium"
+                            ? "👑 Create Premium User"
+                            : activeTab === "fake"
+                              ? "🎭 Create Fake Account"
+                              : "🛡️ Create Moderator"}
+                        
                       </button>
 
                     </div>
@@ -802,19 +815,25 @@ const AdminCreateData = () => {
                   <div className="fs-1 mb-3">
                     {activeTab === "premium"
                       ? "👑"
-                      : "🛡️"}
+                      : activeTab === "fake"
+                        ? "🎭"
+                        : "🛡️"}
                   </div>
 
                   <h4 className="fw-bold">
                     {activeTab === "premium"
                       ? "Premium Account"
-                      : "Moderator Account"}
+                      : activeTab === "fake"
+                        ? "Fake Account"
+                        : "Moderator Account"}
                   </h4>
 
                   <p className="text-secondary">
                     {activeTab === "premium"
                       ? "Create a premium account with a complete LoveLink profile. This account can access premium platform features."
-                      : "Create a moderator account for managing conversations, fake accounts and other moderation activities."}
+                      : activeTab === "fake"
+                        ? "Create a managed account for simulated conversations and moderation workflows."
+                        : "Create a moderator account for managing conversations, fake accounts and other moderation activities."}
                   </p>
 
                   <hr />
@@ -1161,6 +1180,7 @@ const AdminCreateData = () => {
 
                       <button
                         type="submit"
+                        disabled={isSubmitting}
                         className="btn btn-danger rounded-3 px-4 fw-semibold"
                       >
                         🎁 Create Package
