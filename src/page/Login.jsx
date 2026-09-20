@@ -17,25 +17,34 @@ const Login = () => {
     setLoading(true);
     setError("");
 
+    console.debug("[Frontend] Login submit", { email });
+
     try {
       const response = await api.post("/auth/login", { email, password });
 
-      // If OTP verification is required, go there first — don't save token/redirect yet
+      console.debug("[Frontend] Login response", response.data);
+
       if (response.data.requiresOTP) {
         navigate("/otp-verification", {
-          state: { email: response.data.email, userId: response.data.userId },
+          state: {
+            email: response.data.email || email,
+            userId: response.data.userId,
+            fullName: response.data.fullName,
+          },
         });
         return;
       }
 
-      // Save access token
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
       }
 
-      await updateUserLocation();
+      try {
+        await updateUserLocation();
+      } catch (locationError) {
+        console.warn("[Frontend] Location update failed during login; continuing.", locationError);
+      }
 
-      // Redirect based on user role
       const user = response.data.user;
 
       if (user?.role === "moderator") {
@@ -48,20 +57,36 @@ const Login = () => {
         navigate("/discover");
       }
     } catch (err) {
-      if (err.response?.status === 429 && err.response?.data?.requiresOTP) {
+      const backendMessage = err.response?.data?.message;
+      const requiresOTP = err.response?.data?.requiresOTP || err.response?.status === 429;
+      const userId = err.response?.data?.userId;
+      const otpEmail = err.response?.data?.email || email;
+
+      console.error("[Frontend] Login error", {
+        status: err.response?.status,
+        message: err.message,
+        response: err.response?.data,
+        url: err.config?.url,
+        baseURL: err.config?.baseURL,
+      });
+
+      if (requiresOTP && userId) {
         navigate("/otp-verification", {
           state: {
-            email: err.response.data.email,
-            userId: err.response.data.userId,
+            email: otpEmail,
+            userId,
+            fullName: err.response?.data?.fullName || "",
           },
         });
         return;
       }
 
-      setError(
-        err.response?.data?.message ||
-          "Login failed. Please check your credentials.",
-      );
+      const fallbackMessage =
+        err.response?.status === 500
+          ? "The server encountered an error while authenticating. Please try again shortly."
+          : "Login failed. Please check your credentials.";
+
+      setError(backendMessage || fallbackMessage);
     } finally {
       setLoading(false);
     }

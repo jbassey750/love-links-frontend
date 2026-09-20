@@ -209,8 +209,16 @@ const SignUpFlow = ({ onComplete }) => {
         navigate("/");
       }, 1200);
     } catch (err) {
+      console.error("[Frontend] Signup error", {
+        status: err.response?.status,
+        message: err.message,
+        data: err.response?.data,
+        url: err.config?.url,
+        baseURL: err.config?.baseURL,
+      });
+
       setApiError(
-        err.response?.data?.message || "An error occurred during signup!",
+        err.response?.data?.message || "An error occurred during signup. Please try again.",
       );
     } finally {
       setLoading(false);
