@@ -368,7 +368,7 @@ const Profile = () => {
                   objectFit: "cover",
                 }}
                 onError={(e) => {
-                  console.error("PROFILE IMAGE FAILED:", e.currentTarget.src);
+                  // console.error("PROFILE IMAGE FAILED:", e.currentTarget.src);
                   e.currentTarget.src = getProfilePhotoUrl("", user.gender);
                 }}
               />
