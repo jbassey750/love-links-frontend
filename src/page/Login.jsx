@@ -60,46 +60,40 @@ const Login = () => {
         navigate("/discover");
       }
     } catch (err) {
-      console.error("[Login Error]", err);
-
-      const status = err.response?.status;
       const backendMessage = err.response?.data?.message;
+      const requiresOTP =
+        err.response?.data?.requiresOTP || err.response?.status === 429;
+      const userId = err.response?.data?.userId;
+      const otpEmail = err.response?.data?.email || email;
+
+      console.error("[Frontend] Login error", {
+        status: err.response?.status,
+        message: err.message,
+        response: err.response?.data,
+        url: err.config?.url,
+        baseURL: err.config?.baseURL,
+      });
+
+      // Handle OTP verification
+      if (requiresOTP && userId) {
+        navigate("/otp-verification", {
+          state: {
+            email: otpEmail,
+            userId,
+            fullName: err.response?.data?.fullName || "",
+          },
+        });
+        return;
+      }
+
+      // Show the real error temporarily so we can diagnose the phone issue
+      const status = err.response?.status;
       const networkMessage = err.message;
 
       setError(
         backendMessage ||
           `Request failed${status ? ` (${status})` : ""}: ${networkMessage}`,
       );
-      // const backendMessage = err.response?.data?.message;
-      // const requiresOTP = err.response?.data?.requiresOTP || err.response?.status === 429;
-      // const userId = err.response?.data?.userId;
-      // const otpEmail = err.response?.data?.email || email;
-
-      // console.error("[Frontend] Login error", {
-      // status: err.response?.status,
-      // message: err.message,
-      // response: err.response?.data,
-      // url: err.config?.url,
-      // baseURL: err.config?.baseURL,
-      // });
-
-      // if (requiresOTP && userId) {
-      // navigate("/otp-verification", {
-      // state: {
-      // email: otpEmail,
-      // userId,
-      // fullName: err.response?.data?.fullName || "",
-      // },
-      // });
-      // return;
-      // }
-
-      // const fallbackMessage =
-      // err.response?.status === 500
-      // ? "The server encountered an error while authenticating. Please try again shortly."
-      // : "Login failed. Please check your credentials.";
-
-      // setError(backendMessage || fallbackMessage);
     } finally {
       setLoading(false);
     }
