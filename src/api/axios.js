@@ -6,7 +6,14 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+
+  const publicRoutes = ["/auth/login", "/auth/signup"];
+
+  const isPublicRoute = publicRoutes.some((route) =>
+    config.url?.startsWith(route)
+  );
+
+  if (token && !isPublicRoute) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -15,6 +22,7 @@ api.interceptors.request.use((config) => {
     method: (config.method || "get").toUpperCase(),
     url: `${config.baseURL || ""}${config.url}`,
     hasToken: Boolean(token),
+    isPublicRoute,
   });
 
   return config;
@@ -27,6 +35,7 @@ api.interceptors.response.use(
       url: `${response.config?.baseURL || ""}${response.config?.url || ""}`,
       data: response.data,
     });
+
     return response;
   },
   (error) => {
@@ -36,8 +45,9 @@ api.interceptors.response.use(
       message: error.message,
       data: error.response?.data,
     });
+
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;

@@ -42,7 +42,10 @@ const Login = () => {
       try {
         await updateUserLocation();
       } catch (locationError) {
-        console.warn("[Frontend] Location update failed during login; continuing.", locationError);
+        console.warn(
+          "[Frontend] Location update failed during login; continuing.",
+          locationError,
+        );
       }
 
       const user = response.data.user;
@@ -57,36 +60,46 @@ const Login = () => {
         navigate("/discover");
       }
     } catch (err) {
+      console.error("[Login Error]", err);
+
+      const status = err.response?.status;
       const backendMessage = err.response?.data?.message;
-      const requiresOTP = err.response?.data?.requiresOTP || err.response?.status === 429;
-      const userId = err.response?.data?.userId;
-      const otpEmail = err.response?.data?.email || email;
+      const networkMessage = err.message;
 
-      console.error("[Frontend] Login error", {
-        status: err.response?.status,
-        message: err.message,
-        response: err.response?.data,
-        url: err.config?.url,
-        baseURL: err.config?.baseURL,
-      });
+      setError(
+        backendMessage ||
+          `Request failed${status ? ` (${status})` : ""}: ${networkMessage}`,
+      );
+      // const backendMessage = err.response?.data?.message;
+      // const requiresOTP = err.response?.data?.requiresOTP || err.response?.status === 429;
+      // const userId = err.response?.data?.userId;
+      // const otpEmail = err.response?.data?.email || email;
 
-      if (requiresOTP && userId) {
-        navigate("/otp-verification", {
-          state: {
-            email: otpEmail,
-            userId,
-            fullName: err.response?.data?.fullName || "",
-          },
-        });
-        return;
-      }
+      // console.error("[Frontend] Login error", {
+      // status: err.response?.status,
+      // message: err.message,
+      // response: err.response?.data,
+      // url: err.config?.url,
+      // baseURL: err.config?.baseURL,
+      // });
 
-      const fallbackMessage =
-        err.response?.status === 500
-          ? "The server encountered an error while authenticating. Please try again shortly."
-          : "Login failed. Please check your credentials.";
+      // if (requiresOTP && userId) {
+      // navigate("/otp-verification", {
+      // state: {
+      // email: otpEmail,
+      // userId,
+      // fullName: err.response?.data?.fullName || "",
+      // },
+      // });
+      // return;
+      // }
 
-      setError(backendMessage || fallbackMessage);
+      // const fallbackMessage =
+      // err.response?.status === 500
+      // ? "The server encountered an error while authenticating. Please try again shortly."
+      // : "Login failed. Please check your credentials.";
+
+      // setError(backendMessage || fallbackMessage);
     } finally {
       setLoading(false);
     }
