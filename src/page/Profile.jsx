@@ -2,19 +2,34 @@ import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 import EditProfileModal from "./user/EditProfileModal";
 
-const getProfilePhotoUrl = (photo) => {
+const getProfilePhotoUrl = (photo, gender) => {
+  // const femaleFallback =
+  // "https://api.dicebear.com/9.x/personas/svg?seed=female-user";
+
+  // const maleFallback =
+  // "https://api.dicebear.com/9.x/personas/svg?seed=male-user";
+
+  // const neutralFallback =
+  // "https://api.dicebear.com/9.x/personas/svg?seed=default-user";
+
+  const femaleFallback = "/images/default-female.png";
+  const maleFallback = "/images/default-male.png";
+  const neutralFallback = "/images/default-user.png";
+
   if (!photo) {
-    return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=500";
+    if (gender === "female") return femaleFallback;
+    if (gender === "male") return maleFallback;
+    return neutralFallback;
   }
 
-  // If the backend already returns a complete URL
   if (photo.startsWith("http://") || photo.startsWith("https://")) {
     return photo;
   }
 
-  const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+  const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+  const backendUrl = apiUrl.replace(/\/api$/, "");
 
-  return `${baseUrl}/uploads/${photo}`;
+  return `${backendUrl}/uploads/${photo}`;
 };
 
 const formatValue = (value, fallback = "Not provided") => {
@@ -353,8 +368,8 @@ const Profile = () => {
                   objectFit: "cover",
                 }}
                 onError={(e) => {
-                  e.currentTarget.src =
-                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=500";
+                  console.error("PROFILE IMAGE FAILED:", e.currentTarget.src);
+                  e.currentTarget.src = getProfilePhotoUrl("", user.gender);
                 }}
               />
             </div>

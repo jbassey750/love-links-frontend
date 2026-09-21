@@ -11,7 +11,50 @@ const Discover = ({ location = "Amsterdam" }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [matchedUser, setMatchedUser] = useState(null);
   const [toastMessage, setToastMessage] = useState(null); // Dynamic toast message state
-  
+
+  // Get profile image URL
+  const getProfileImageUrl = (user) => {
+    if (!user?.photo && !user?.photoUrl) {
+      return null;
+    }
+
+    const photo = user.photoUrl || user.photo;
+
+    if (photo.startsWith("http://") || photo.startsWith("https://")) {
+      return photo;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+
+    // Remove /api because uploads are served from /uploads
+    const backendUrl = apiUrl.replace(/\/api$/, "");
+
+    return `${backendUrl}/uploads/${photo}`;
+  };
+
+  // Get gender-based fallback
+  const getFallbackAvatar = (user) => {
+    const gender = user?.gender?.toLowerCase();
+
+    if (gender === "female") {
+      return {
+        background: "#f3dfe5",
+        iconColor: "#73112d",
+      };
+    }
+
+    if (gender === "male") {
+      return {
+        background: "#dfe8f3",
+        iconColor: "#315b85",
+      };
+    }
+
+    return {
+      background: "#e8e3df",
+      iconColor: "#665d57",
+    };
+  };
 
   // Auto-dismiss notification after 2.5 seconds
   useEffect(() => {
@@ -40,10 +83,8 @@ const Discover = ({ location = "Amsterdam" }) => {
         badge: user.badge || "Love & Friends",
         bio: user.bio || "No bio provided yet.",
         tags: user.interests || [],
-        image:
-          user.photoUrl ||
-          user.photo ||
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000",
+        image: getProfileImageUrl(user),
+        gender: user.gender || "",
       }));
 
       setProfiles(formattedProfiles);
@@ -204,8 +245,8 @@ const Discover = ({ location = "Amsterdam" }) => {
                   toastMessage.type === "warning"
                     ? "rgba(180, 83, 9, 0.92)"
                     : toastMessage.type === "error"
-                    ? "rgba(185, 28, 28, 0.92)"
-                    : "rgba(92, 29, 36, 0.92)",
+                      ? "rgba(185, 28, 28, 0.92)"
+                      : "rgba(92, 29, 36, 0.92)",
                 backdropFilter: "blur(12px)",
                 borderColor: "rgba(255, 255, 255, 0.2)",
                 boxShadow: "0 10px 30px rgba(0, 0, 0, 0.25)",
@@ -220,11 +261,12 @@ const Discover = ({ location = "Amsterdam" }) => {
                     toastMessage.type === "warning"
                       ? "bi-exclamation-triangle-fill text-warning"
                       : toastMessage.type === "error"
-                      ? "bi-x-circle-fill text-danger"
-                      : "bi-heart-fill"
+                        ? "bi-x-circle-fill text-danger"
+                        : "bi-heart-fill"
                   } fs-6`}
                   style={{
-                    color: toastMessage.type === "success" ? "#5c1d24" : undefined,
+                    color:
+                      toastMessage.type === "success" ? "#5c1d24" : undefined,
                   }}
                 ></i>
               </div>
@@ -260,13 +302,60 @@ const Discover = ({ location = "Amsterdam" }) => {
               className="card border-0 rounded-0 rounded-md-4 overflow-hidden text-white shadow-sm position-relative mb-0 mb-md-3 flex-grow-1"
               style={{
                 minHeight: "calc(100vh - 136px)",
-                backgroundImage: `url(${currentProfile.image})`,
+                backgroundImage: currentProfile.image
+                  ? `url("${currentProfile.image}")`
+                  : "none",
                 backgroundPosition: "center center",
                 backgroundRepeat: "no-repeat",
                 backgroundSize: "cover",
-                backgroundColor: "#2c2c2c",
+                backgroundColor: getFallbackAvatar(currentProfile).background,
               }}
             >
+              {currentProfile.image && (
+                <img
+                  src={currentProfile.image}
+                  alt=""
+                  style={{ display: "none" }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+
+                    setProfiles((prev) =>
+                      prev.map((profile) =>
+                        profile.id === currentProfile.id
+                          ? { ...profile, image: null }
+                          : profile,
+                      ),
+                    );
+                  }}
+                />
+              )}
+
+              {!currentProfile.image && (
+                <div
+                  className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                  style={{
+                    backgroundColor:
+                      getFallbackAvatar(currentProfile).background,
+                  }}
+                >
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{
+                      width: "190px",
+                      height: "190px",
+                      backgroundColor: "rgba(255,255,255,0.65)",
+                    }}
+                  >
+                    <i
+                      className="bi bi-person-fill"
+                      style={{
+                        fontSize: "9rem",
+                        color: getFallbackAvatar(currentProfile).iconColor,
+                      }}
+                    ></i>
+                  </div>
+                </div>
+              )}
               <div
                 className="position-absolute w-100 h-100"
                 style={{

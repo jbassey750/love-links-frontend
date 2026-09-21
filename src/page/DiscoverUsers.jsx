@@ -167,8 +167,40 @@ const DiscoverUsers = () => {
       return user.photo;
     }
 
-    return `http://localhost:5000/uploads/${user.photo}`;
+    const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+
+    // Remove /api because uploads are served from /uploads
+    const backendUrl = apiUrl.replace(/\/api$/, "");
+
+    return `${backendUrl}/uploads/${user.photo}`;
   };
+
+
+  const getFallbackAvatar = (user) => {
+  const gender = user?.gender?.toLowerCase();
+
+  if (gender === "female") {
+    return {
+      icon: "bi-person-fill",
+      background: "#f3dfe5",
+      iconColor: "#73112d",
+    };
+  }
+
+  if (gender === "male") {
+    return {
+      icon: "bi-person-fill",
+      background: "#dfe8f3",
+      iconColor: "#315b85",
+    };
+  }
+
+  return {
+    icon: "bi-person-fill",
+    background: "#e8e3df",
+    iconColor: "#665d57",
+  };
+};
 
   // --------------------------------------------------
   // Get interests
@@ -369,27 +401,57 @@ const DiscoverUsers = () => {
                       }}
                     >
                       {photo ? (
-                        <img
-                          src={photo}
-                          alt={user.fullName || "User"}
-                          className="w-100 h-100"
-                          style={{
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        <div
-                          className="w-100 h-100 d-flex align-items-center justify-content-center"
-                          style={{
-                            backgroundColor: "#73112d",
-                          }}
-                        >
-                          <i
-                            className="bi bi-person-fill text-white"
-                            style={{ fontSize: "5rem" }}
-                          ></i>
-                        </div>
-                      )}
+  <img
+    src={photo}
+    alt={user.fullName || "User"}
+    className="w-100 h-100"
+    style={{
+      objectFit: "cover",
+    }}
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+
+      const fallback = e.currentTarget.parentElement?.querySelector(
+        ".profile-fallback"
+      );
+
+      if (fallback) {
+        fallback.style.display = "flex";
+      }
+    }}
+  />
+) : null}
+
+{(() => {
+  const fallback = getFallbackAvatar(user);
+
+  return (
+    <div
+      className="profile-fallback w-100 h-100 align-items-center justify-content-center"
+      style={{
+        display: photo ? "none" : "flex",
+        backgroundColor: fallback.background,
+      }}
+    >
+      <div
+        className="rounded-circle d-flex align-items-center justify-content-center"
+        style={{
+          width: "115px",
+          height: "115px",
+          backgroundColor: "rgba(255,255,255,0.65)",
+        }}
+      >
+        <i
+          className={`bi ${fallback.icon}`}
+          style={{
+            fontSize: "5rem",
+            color: fallback.iconColor,
+          }}
+        ></i>
+      </div>
+    </div>
+  );
+})()}
 
                       {/* Online indicator */}
                       {user.status === "online" && (
@@ -612,27 +674,57 @@ const DiscoverUsers = () => {
               }}
             >
               {getUserPhoto(selectedUser) ? (
-                <img
-                  src={getUserPhoto(selectedUser)}
-                  alt={selectedUser.fullName || "User"}
-                  className="w-100 h-100"
-                  style={{
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                <div
-                  className="w-100 h-100 d-flex align-items-center justify-content-center"
-                  style={{
-                    backgroundColor: "#73112d",
-                  }}
-                >
-                  <i
-                    className="bi bi-person-fill text-white"
-                    style={{ fontSize: "7rem" }}
-                  ></i>
-                </div>
-              )}
+  <img
+    src={getUserPhoto(selectedUser)}
+    alt={selectedUser.fullName || "User"}
+    className="w-100 h-100"
+    style={{
+      objectFit: "cover",
+    }}
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+
+      const fallback = e.currentTarget.parentElement?.querySelector(
+        ".modal-profile-fallback"
+      );
+
+      if (fallback) {
+        fallback.style.display = "flex";
+      }
+    }}
+  />
+) : null}
+
+{(() => {
+  const fallback = getFallbackAvatar(selectedUser);
+
+  return (
+    <div
+      className="modal-profile-fallback w-100 h-100 align-items-center justify-content-center"
+      style={{
+        display: getUserPhoto(selectedUser) ? "none" : "flex",
+        backgroundColor: fallback.background,
+      }}
+    >
+      <div
+        className="rounded-circle d-flex align-items-center justify-content-center"
+        style={{
+          width: "150px",
+          height: "150px",
+          backgroundColor: "rgba(255,255,255,0.65)",
+        }}
+      >
+        <i
+          className={`bi ${fallback.icon}`}
+          style={{
+            fontSize: "7rem",
+            color: fallback.iconColor,
+          }}
+        ></i>
+      </div>
+    </div>
+  );
+})()}
 
               {/* Close */}
               <button
