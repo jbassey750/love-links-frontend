@@ -44,6 +44,12 @@ const AdminNavbar = ({ activeTab, onTabChange, pendingLikesCount = 3 }) => {
       icon: "bi-plus-circle",
       path: "/admin/create-data",
     },
+    {
+      id: "admin-manage-account",
+      label: "Management Accounts",
+      icon: "bi-person-badge-fill",
+      path: "/admin/managed-accounts",
+    },
   ];
 
   const currentTab =

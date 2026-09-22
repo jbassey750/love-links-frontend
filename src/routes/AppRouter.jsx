@@ -27,11 +27,13 @@ import StatsPage from "../page/moderator/StatsPage";
 
 import AdminDashboard from "../page/admin/AdminDashboard";
 import AdminCreateData from "../page/admin/AdminCreateData";
+import ManagedAccountsPage from "../page/admin/ManagedAccountsPage";
 import FakeDashboard from "../page/admin/fakeuser/FakeDashboard";
 import AdminPendingLikes from "../page/admin/AdminPendingLikes";
 import ADminNotifications from "../page/admin/AdminNotifications";
 import AdminMatches from "../page/admin/AdminMatches";
 import AdminChat from "../page/admin/AdminChat";
+
 import { ModeratorProvider } from "../context/ModeratorContext";
 
 function AppRouter() {
@@ -41,6 +43,7 @@ function AppRouter() {
       <Route path="register" element={<SignUp />} />
       <Route path="admin/dashboard" element={<AdminDashboard />} />
       <Route path="admin/create-data" element={<AdminCreateData />} />
+      <Route path="/admin/managed-accounts" element={<ManagedAccountsPage />} />
       <Route
         path="/admin/fake-accounts/dashboard"
         element={<FakeDashboard />}
