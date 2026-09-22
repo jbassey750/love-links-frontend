@@ -109,7 +109,7 @@ const ModeratorLogin = () => {
             }}
           >
             <i className="bi bi-heart-fill fs-4 text-white"></i>
-            Enamora
+            love links
           </h1>
 
           <p
