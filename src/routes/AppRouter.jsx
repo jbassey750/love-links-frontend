@@ -35,12 +35,16 @@ import AdminMatches from "../page/admin/AdminMatches";
 import AdminChat from "../page/admin/AdminChat";
 
 import { ModeratorProvider } from "../context/ModeratorContext";
+import ModeratorLogin from "../page/moderator/ModeratorLogin";
 
 function AppRouter() {
   return (
     <Routes>
       <Route index element={<Login />} />
       <Route path="register" element={<SignUp />} />
+      <Route path="/moderate/logs/workspace" element={<ModeratorLogin />} />
+
+
       <Route path="admin/dashboard" element={<AdminDashboard />} />
       <Route path="admin/create-data" element={<AdminCreateData />} />
       <Route path="/admin/managed-accounts" element={<ManagedAccountsPage />} />

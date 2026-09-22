@@ -50,9 +50,14 @@ const Login = () => {
 
       const user = response.data.user;
 
+      // Moderators must use the dedicated moderator login
       if (user?.role === "moderator") {
-        navigate("/moderator/workspace");
-      } else if (user?.role === "admin") {
+        localStorage.removeItem("token");
+        setError("Moderators must use the moderator login portal.");
+        return;
+      }
+
+      if (user?.role === "admin") {
         navigate("/admin/dashboard");
       } else if (user?.accountType === "fake") {
         navigate("/admin/fake-accounts/dashboard");
