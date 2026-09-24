@@ -12,7 +12,7 @@ import Matches from "../page/Matches";
 import ConversationsList from "../page/ConversationsList";
 import Chat from "../page/Chat";
 import Profile from "../page/Profile";
-import Notifications from "../page/user/Notifications";
+import Notifications from "../page/user/Notifications"; 
 import NotFound from "../page/user/NotFound";
 import BuyCoins from "../page/user/BuyCoins";
 import PaymentSuccess from "../page/user/PaymentSuccess";
