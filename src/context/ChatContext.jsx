@@ -3,7 +3,7 @@ import React, { createContext, useState } from "react";
 export const ChatContext = createContext();
 
 export const ChatProvider = ({ children }) => {
-  const [selectedChat, setSelectedChat] = useState(null);
+  const [selectedChat, setSelectedChat] = useState(null); 
 
   // Store distinct message histories by chat ID
   const [chatMessages, setChatMessages] = useState({

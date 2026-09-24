@@ -1,4 +1,4 @@
-import { createContext } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "../api/axios";
 
@@ -7,17 +7,31 @@ export const NotificationContext = createContext({
   notifications: [],
   latestNotification: null,
   refreshUnreadCount: async () => {},
+  refreshNotifications: async () => {},
   setUnreadCount: () => {},
   clearLatestNotification: () => {},
 });
 
 export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
   const [latestNotification, setLatestNotification] = useState(null);
 
-  // ==========================================
-  // Get current unread notification count
-  // ==========================================
+  const socketRef = useRef(null);
+
+  // =========================================================
+  // API + SOCKET URL
+  // =========================================================
+
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+  const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
+
+  // =========================================================
+  // Get unread notification count
+  // =========================================================
+
   const refreshUnreadCount = async () => {
     try {
       const response = await axios.get("/notifications/unread-count");
@@ -28,39 +42,67 @@ export const NotificationProvider = ({ children }) => {
         response.data?.unreadCount ??
         0;
 
-      setUnreadCount(count);
+      setUnreadCount(Number(count) || 0);
     } catch (error) {
       console.error(
         "Failed to refresh notification unread count:",
-        error
+        error,
       );
     }
   };
 
-  // ==========================================
-  // Clear the notification currently shown
-  // in the global popup
-  // ==========================================
+  // =========================================================
+  // Get all notifications
+  // =========================================================
+
+  const refreshNotifications = async () => {
+    try {
+      const response = await axios.get("/notifications");
+
+      const notificationsPayload =
+        response.data?.notifications ||
+        response.data?.data ||
+        response.data ||
+        [];
+
+      if (Array.isArray(notificationsPayload)) {
+        setNotifications(notificationsPayload);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to refresh notifications:",
+        error,
+      );
+    }
+  };
+
+  // =========================================================
+  // Clear global notification popup
+  // =========================================================
+
   const clearLatestNotification = () => {
     setLatestNotification(null);
   };
 
-  // ==========================================
-  // Initial unread count
-  // ==========================================
+  // =========================================================
+  // Initial notification data
+  // =========================================================
+
   useEffect(() => {
     refreshUnreadCount();
+    refreshNotifications();
   }, []);
 
-  // ==========================================
-  // Global Socket.IO notification listener
-  // ==========================================
+  // =========================================================
+  // GLOBAL SOCKET.IO NOTIFICATION LISTENER
+  // =========================================================
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
     if (!storedUser) {
       console.warn(
-        "No logged-in user found. Notification socket will not connect."
+        "No logged-in user found. Notification socket will not connect.",
       );
       return;
     }
@@ -70,7 +112,10 @@ export const NotificationProvider = ({ children }) => {
     try {
       user = JSON.parse(storedUser);
     } catch (error) {
-      console.error("Invalid user data in localStorage:", error);
+      console.error(
+        "Invalid user data in localStorage:",
+        error,
+      );
       return;
     }
 
@@ -78,107 +123,217 @@ export const NotificationProvider = ({ children }) => {
 
     if (!userId) {
       console.warn(
-        "No user ID found. Notification socket will not connect."
+        "No user ID found. Notification socket will not connect.",
       );
       return;
     }
 
-    const socketUrl =
-      import.meta.env.VITE_API_URL || "http://localhost:5000";
+    console.log(
+      "Connecting notification socket:",
+      SOCKET_URL,
+    );
 
-    console.log("Connecting notification socket:", socketUrl);
-
-    const socket = io(socketUrl, {
+    const socket = io(SOCKET_URL, {
       transports: ["websocket"],
       withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
-    // ==========================================
-    // Socket connected
-    // ==========================================
+    socketRef.current = socket;
+
+    // =======================================================
+    // SOCKET CONNECTED
+    // =======================================================
+
     socket.on("connect", () => {
       console.log(
         "🔌 Notification socket connected:",
-        socket.id
+        socket.id,
       );
 
-      // Join this user's private Socket.IO room
-      socket.emit("join-user", userId);
+      socket.emit("join-user", userId.toString());
 
       console.log(
         "👤 Joined notification room:",
-        userId
+        userId.toString(),
       );
     });
 
-    // ==========================================
+    // =======================================================
+    // CONNECTION ERROR
+    // =======================================================
+
+    socket.on("connect_error", (error) => {
+      console.error(
+        "❌ Notification socket connection error:",
+        error,
+      );
+    });
+
+    // =======================================================
     // NEW NOTIFICATION
-    // ==========================================
+    // =======================================================
+
     socket.on("new-notification", (notification) => {
       console.log(
         "🔔 New notification received:",
-        notification
+        notification,
       );
 
-      // Store notification for the global popup
+      if (!notification) {
+        return;
+      }
+
+      const notificationId =
+        notification._id || notification.id;
+
+      // -------------------------------------------------------
+      // Prevent duplicate notification
+      // -------------------------------------------------------
+
+      setNotifications((prev) => {
+        if (!notificationId) {
+          return [notification, ...prev];
+        }
+
+        const alreadyExists = prev.some(
+          (item) =>
+            (item._id || item.id)?.toString() ===
+            notificationId.toString(),
+        );
+
+        if (alreadyExists) {
+          return prev;
+        }
+
+        return [notification, ...prev];
+      });
+
+      // -------------------------------------------------------
+      // Store latest notification globally.
+      //
+      // This is what allows the slide-down notification
+      // popup to work on every page.
+      // -------------------------------------------------------
+
       setLatestNotification(notification);
 
+      // -------------------------------------------------------
       // Increase unread count
+      // -------------------------------------------------------
+
       setUnreadCount((prev) => prev + 1);
     });
 
-    // ==========================================
-    // Notification marked as read
-    // ==========================================
-    socket.on("notification-read", ({ notificationId }) => {
+    // =======================================================
+    // NOTIFICATION MARKED AS READ
+    // =======================================================
+
+    socket.on(
+      "notification-read",
+      ({ notificationId }) => {
+        console.log(
+          "Notification marked as read:",
+          notificationId,
+        );
+
+        setNotifications((prev) =>
+          prev.map((notification) => {
+            const id =
+              notification._id || notification.id;
+
+            if (
+              id?.toString() ===
+              notificationId?.toString()
+            ) {
+              return {
+                ...notification,
+                isRead: true,
+              };
+            }
+
+            return notification;
+          }),
+        );
+
+        setUnreadCount((prev) =>
+          Math.max(0, prev - 1),
+        );
+      },
+    );
+
+    // =======================================================
+    // ALL NOTIFICATIONS MARKED AS READ
+    // =======================================================
+
+    socket.on("all-notifications-read", () => {
       console.log(
-        "Notification marked as read:",
-        notificationId
+        "All notifications marked as read.",
       );
 
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    });
-
-    // ==========================================
-    // All notifications marked as read
-    // ==========================================
-    socket.on("all-notifications-read", () => {
-      console.log("All notifications marked as read.");
+      setNotifications((prev) =>
+        prev.map((notification) => ({
+          ...notification,
+          isRead: true,
+        })),
+      );
 
       setUnreadCount(0);
     });
 
-    // ==========================================
-    // Notification deleted
-    // ==========================================
-    socket.on("notification-deleted", ({ notificationId }) => {
-      console.log(
-        "Notification deleted:",
-        notificationId
-      );
+    // =======================================================
+    // NOTIFICATION DELETED
+    // =======================================================
 
-      // We refresh from the backend instead of guessing
-      // whether the deleted notification was unread.
-      refreshUnreadCount();
-    });
+    socket.on(
+      "notification-deleted",
+      ({ notificationId }) => {
+        console.log(
+          "Notification deleted:",
+          notificationId,
+        );
 
-    // ==========================================
-    // Socket disconnected
-    // ==========================================
+        setNotifications((prev) =>
+          prev.filter((notification) => {
+            const id =
+              notification._id || notification.id;
+
+            return (
+              id?.toString() !==
+              notificationId?.toString()
+            );
+          }),
+        );
+
+        refreshUnreadCount();
+      },
+    );
+
+    // =======================================================
+    // SOCKET DISCONNECTED
+    // =======================================================
+
     socket.on("disconnect", (reason) => {
       console.log(
         "🔌 Notification socket disconnected:",
-        reason
+        reason,
       );
     });
 
-    // ==========================================
-    // Cleanup
-    // ==========================================
+    // =======================================================
+    // CLEANUP
+    // =======================================================
+
     return () => {
-      console.log("Cleaning up notification socket...");
+      console.log(
+        "Cleaning up notification socket...",
+      );
 
       socket.off("connect");
+      socket.off("connect_error");
       socket.off("new-notification");
       socket.off("notification-read");
       socket.off("all-notifications-read");
@@ -186,6 +341,8 @@ export const NotificationProvider = ({ children }) => {
       socket.off("disconnect");
 
       socket.disconnect();
+
+      socketRef.current = null;
     };
   }, []);
 
@@ -193,8 +350,10 @@ export const NotificationProvider = ({ children }) => {
     <NotificationContext.Provider
       value={{
         unreadCount,
+        notifications,
         latestNotification,
         refreshUnreadCount,
+        refreshNotifications,
         setUnreadCount,
         clearLatestNotification,
       }}

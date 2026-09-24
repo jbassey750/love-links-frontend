@@ -53,6 +53,32 @@ const StatsPage = () => {
   const summary = stats?.summary || {};
   const charts = stats?.charts || {};
 
+  const messageValues =
+    charts?.messagesPerDay?.map((day) => day.messages || 0) || [];
+
+  const highestMessageCount = Math.max(...messageValues, 0);
+
+  // Choose a clean tick interval based on the highest value
+  let tickStep = 50;
+
+  if (highestMessageCount <= 50) {
+    tickStep = 10;
+  } else if (highestMessageCount <= 250) {
+    tickStep = 50;
+  } else if (highestMessageCount <= 500) {
+    tickStep = 100;
+  } else if (highestMessageCount <= 1000) {
+    tickStep = 250;
+  } else {
+    tickStep = 500;
+  }
+
+  // Make the maximum a clean multiple of the tick step
+  const chartMax =
+    highestMessageCount === 0
+      ? tickStep
+      : Math.ceil(highestMessageCount / tickStep) * tickStep;
+
   const barData = {
     labels: charts?.messagesPerDay?.map((day) => day.label) || [],
     datasets: [
@@ -210,7 +236,7 @@ const StatsPage = () => {
                 </div>
               </div>
               <h3 className="fw-bold text-dark m-0">
-                {loading ? "..." : card.value ?? 0}
+                {loading ? "..." : (card.value ?? 0)}
               </h3>
             </div>
           </div>
@@ -225,7 +251,20 @@ const StatsPage = () => {
             <div style={{ height: "260px" }}>
               <Bar
                 data={barData}
-                options={{ responsive: true, maintainAspectRatio: false }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: {
+                      min: 0,
+                      max: chartMax,
+                      ticks: {
+                        stepSize: tickStep,
+                        precision: 0,
+                      },
+                    },
+                  },
+                }}
               />
             </div>
           </div>

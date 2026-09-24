@@ -56,6 +56,7 @@ function AppRouter() {
       <Route path="/admin/matches" element={<AdminMatches />} />
       <Route path="/admin/notifications" element={<ADminNotifications />} />
       <Route path="/admin/chats/:chatId" element={<AdminChat />} />
+      
       <Route path="chat/:chatId" element={<Chat />} />
       <Route path="buy-coins" element={<BuyCoins />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -70,7 +71,7 @@ function AppRouter() {
           </ModeratorProvider>
         }
       >
-        <Route index element={<Navigate to="messages" replace />} />
+        <Route index element={<Navigate to="messages" replace />} /> 
         <Route path="messages" element={<MessagesPage />} />
         <Route path="stats" element={<StatsPage />} />
       </Route>
@@ -95,3 +96,4 @@ function AppRouter() {
 }
 
 export default AppRouter;
+ 

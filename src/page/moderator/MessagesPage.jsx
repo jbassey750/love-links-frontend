@@ -248,8 +248,9 @@ const MessagesPage = () => {
               chatId: data.chatId,
               fakeUser: data.fakeUser,
               realUser: data.realUser,
-              status: "active",
-              assignedAt: new Date().toISOString(),
+              status: data.status || "active",
+              assignedAt: data.assignedAt,
+              expiresAt: data.expiresAt,
               lastMessage: data.message || null,
               lastMessageAt:
                 data.message?.createdAt || new Date().toISOString(),
@@ -321,7 +322,7 @@ const MessagesPage = () => {
         const handleAssignmentExpired = (data) => {
           if (!data) return;
 
-          console.log("⏰ Assignment expired:", data);
+          console.log("Assignment expired:", data);
 
           const currentAssignment = assignmentRef.current;
 
@@ -334,18 +335,35 @@ const MessagesPage = () => {
             return;
           }
 
-          setAssignmentNotice({
-            type: "expired",
-            message:
-              data.message ||
-              "Your chat session has expired and this conversation has been reassigned.",
-          });
+          /**
+           * If the backend says another moderator received the assignment,
+           * remove it from this moderator.
+           */
+          if (data.reassigned === true) {
+            setAssignmentNotice({
+              type: "expired",
+              message:
+                data.message ||
+                "Your chat session has expired. This conversation has been reassigned to another moderator.",
+              showReload: true,
+            });
 
-          // Remove the expired assignment from this moderator
-          setAssignment(null);
-          assignmentRef.current = null;
-          setMessages([]);
-          setIsWaitingForReply(true);
+            setAssignment(null);
+            assignmentRef.current = null;
+            setMessages([]);
+            setIsWaitingForReply(true);
+
+            return;
+          }
+
+          /**
+           * No other moderator was available.
+           *
+           * Keep the assignment. The next incoming message can renew it.
+           */
+          console.log(
+            "No replacement moderator available. Keeping assignment available for renewal.",
+          );
         };
 
         socket.on("assignment-expired", handleAssignmentExpired);
@@ -515,6 +533,19 @@ const MessagesPage = () => {
     } catch (err) {
       console.error("Moderator send message error:", err);
 
+      const errorCode = err.response?.data?.code;
+
+      if (errorCode === "CHAT_EXPIRED") {
+        setAssignmentNotice({
+          type: "expired",
+          message:
+            "Your chat session has expired. This conversation will be reassigned to another moderator.",
+          showReload: true,
+        });
+
+        return;
+      }
+
       setError(
         err.response?.data?.message || err.message || "Failed to send message.",
       );
@@ -582,9 +613,16 @@ const MessagesPage = () => {
                 <button
                   type="button"
                   className="btn btn-light px-4 fw-semibold"
-                  onClick={() => setAssignmentNotice(null)}
+                  onClick={() => {
+                    if (assignmentNotice?.showReload) {
+                      window.location.reload();
+                      return;
+                    }
+
+                    setAssignmentNotice(null);
+                  }}
                 >
-                  OK
+                  {assignmentNotice?.showReload ? "Reload Page" : "OK"}
                 </button>
               </div>
             </div>
@@ -625,13 +663,19 @@ const MessagesPage = () => {
               </h5>
 
               <p className="mb-3">{assignmentNotice.message}</p>
-
               <button
                 type="button"
                 className="btn btn-light px-4 fw-semibold"
-                onClick={() => setAssignmentNotice(null)}
+                onClick={() => {
+                  if (assignmentNotice?.showReload) {
+                    window.location.reload();
+                    return;
+                  }
+
+                  setAssignmentNotice(null);
+                }}
               >
-                OK
+                {assignmentNotice?.showReload ? "Reload Page" : "OK"}
               </button>
             </div>
           </div>
