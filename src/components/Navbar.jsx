@@ -40,12 +40,12 @@ const PAGE_CONFIG = {
     badgeIcon: "bi-person-check-fill",
     badgeColor: "bg-info",
   },
-  "/music": {
-    subtitle: "Music",
-    badgeLabel: "heart beating",
-    badgeIcon: "bi-music-note-beamed",
-    badgeColor: "bg-danger",
-  },
+  // "/music": {
+    // subtitle: "Music",
+    // badgeLabel: "heart beating",
+    // badgeIcon: "bi-music-note-beamed",
+    // badgeColor: "bg-danger",
+  // },
   "/my-date": {
     subtitle: "Plan Your Date",
     badgeLabel: "My Date",
@@ -103,25 +103,25 @@ const Navbar = ({ location = "Amsterdam" }) => {
       {/* Right Container: Badge + Navigation Buttons */}
       <div className="d-flex align-items-center gap-2">
         {/* Circular Action Navigation Buttons */}
-        <div className="d-flex align-items-center gap-1.5">
+        <div className="d-flex align-items-center gap-2">
           {/* Notification Button with Status Indicator */}
 
           {/* Music Button */}
-          <Link
-            to="/music"
-            className={`btn btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm text-decoration-none ${
-              currentPath === "/music" ? "text-white" : "text-dark bg-white"
-            }`}
-            style={{
-              width: "36px",
-              height: "36px",
-              backgroundColor: currentPath === "/music" ? "#5c1d24" : "#ffffff",
-              border: "1px solid rgba(0,0,0,0.05)",
-            }}
-            title="Music"
-          >
-            <i className="bi bi-music-note-beamed fs-6"></i>
-          </Link>
+          {/* <Link */}
+            {/* // to="/music" */}
+            {/* // className={`btn btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm text-decoration-none ${ */}
+              {/* // currentPath === "/music" ? "text-white" : "text-dark bg-white" */}
+            {/* // }`} */}
+            {/* // style={{ */}
+              {/* // width: "36px", */}
+              {/* // height: "36px", */}
+              {/* // backgroundColor: currentPath === "/music" ? "#5c1d24" : "#ffffff", */}
+              {/* // border: "1px solid rgba(0,0,0,0.05)", */}
+            {/* // }} */}
+            {/* // title="Music" */}
+          {/* // > */}
+            {/* <i className="bi bi-music-note-beamed fs-6"></i> */}
+          {/* </Link> */}
 
           {/* Diary Button */}
           <Link
