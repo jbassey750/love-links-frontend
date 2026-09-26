@@ -3,15 +3,6 @@ import api from "../api/axios";
 import EditProfileModal from "./user/EditProfileModal";
 
 const getProfilePhotoUrl = (photo, gender) => {
-  // const femaleFallback =
-  // "https://api.dicebear.com/9.x/personas/svg?seed=female-user";
-
-  // const maleFallback =
-  // "https://api.dicebear.com/9.x/personas/svg?seed=male-user";
-
-  // const neutralFallback =
-  // "https://api.dicebear.com/9.x/personas/svg?seed=default-user";
-
   const femaleFallback = "/images/default-female.png";
   const maleFallback = "/images/default-male.png";
   const neutralFallback = "/images/default-user.png";
@@ -96,6 +87,7 @@ const ProfileInfo = ({ icon, label, value }) => {
 
 const Profile = () => {
   const [user, setUser] = useState(null);
+  const [matchCount, setMatchCount] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -113,33 +105,30 @@ const Profile = () => {
     setError("");
 
     try {
-      const response = await api.get("/profile/me");
+      const [profileResponse, matchesResponse] = await Promise.all([
+        api.get("/profile/me"),
+        api.get("/matches"),
+      ]);
 
-      console.log("PROFILE RESPONSE:", response);
-      console.log("PROFILE DATA:", response.data);
+      console.log("PROFILE RESPONSE:", profileResponse);
+      console.log("PROFILE DATA:", profileResponse.data);
 
-      /*
-        Supports both possible backend responses:
-
-        {
-          user: {...}
-        }
-
-        OR
-
-        {
-          ...user
-        }
-      */
-      const profileUser = response.data?.user || response.data;
-
-      console.log("PROFILE USER:", profileUser);
+      const profileUser = profileResponse.data?.user || profileResponse.data;
 
       if (!profileUser || typeof profileUser !== "object") {
         throw new Error("Invalid profile response.");
       }
 
+      const totalMatches =
+        matchesResponse.data?.totalMatches ??
+        (Array.isArray(matchesResponse.data?.matches)
+          ? matchesResponse.data.matches.length
+          : 0);
+
       setUser(profileUser);
+      setMatchCount(totalMatches);
+      console.log("PHOTO FROM DATABASE:", profileUser.photo);
+      console.log("PROFILE PHOTO URL:", getProfilePhotoUrl(profileUser.photo));
     } catch (err) {
       console.error("PROFILE ERROR:", err);
       console.error("STATUS:", err.response?.status);
@@ -499,14 +488,14 @@ const Profile = () => {
                   color: "#801931",
                 }}
               >
-                {Array.isArray(user.likes) ? user.likes.length : 0}
+                {matchCount}
               </div>
 
               <div
                 className="text-muted text-uppercase fw-semibold"
                 style={{ fontSize: "0.62rem" }}
               >
-                Likes
+                Matches
               </div>
             </div>
           </div>

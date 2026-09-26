@@ -9,7 +9,9 @@ export const NotificationContext = createContext({
   refreshUnreadCount: async () => {},
   refreshNotifications: async () => {},
   setUnreadCount: () => {},
+  setNotifications: () => {},
   clearLatestNotification: () => {},
+  API_ORIGIN: "",
 });
 
 export const NotificationProvider = ({ children }) => {
@@ -25,8 +27,9 @@ export const NotificationProvider = ({ children }) => {
 
   const API_URL =
     import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
 
-  const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
+  const SOCKET_URL = API_ORIGIN;
 
   // =========================================================
   // Get unread notification count

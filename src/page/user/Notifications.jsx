@@ -33,6 +33,13 @@ const Notifications = () => {
   const [currentTime, setCurrentTime] =
     useState(Date.now());
 
+  const getNotificationText = (item) =>
+    item?.body ||
+    item?.message ||
+    item?.data?.message ||
+    item?.data?.body ||
+    "You have a new notification.";
+
   // ==========================================
   // Temporary popup
   // ==========================================
@@ -981,9 +988,7 @@ const Notifications = () => {
                                 lineHeight: 1.45,
                               }}
                             >
-                              {item.body ||
-                                item.message ||
-                                "You have a new notification."}
+                              {getNotificationText(item)}
                             </p>
                           </div>
 

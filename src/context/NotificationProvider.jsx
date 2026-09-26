@@ -12,9 +12,10 @@ export const NotificationProvider = ({ children }) => {
 
   const API_URL =
     import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
 
   // Remove /api because Socket.IO connects to the server root.
-  const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
+  const SOCKET_URL = API_ORIGIN;
 
   const getCurrentUserId = () => {
     const token = localStorage.getItem("token");
@@ -66,11 +67,37 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // ==========================================
+  // Refresh all notifications
+  // ==========================================
+
+  const refreshNotifications = async () => {
+    try {
+      const response = await axios.get("/notifications");
+
+      const notificationsPayload =
+        response.data?.notifications ||
+        response.data?.data ||
+        response.data ||
+        [];
+
+      if (Array.isArray(notificationsPayload)) {
+        setNotifications(notificationsPayload);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to refresh notifications:",
+        error,
+      );
+    }
+  };
+
+  // ==========================================
   // Initial unread count
   // ==========================================
 
   useEffect(() => {
     refreshUnreadCount();
+    refreshNotifications();
   }, []);
 
   // ==========================================
@@ -313,8 +340,11 @@ export const NotificationProvider = ({ children }) => {
         notifications,
         latestNotification,
         refreshUnreadCount,
+        refreshNotifications,
         setUnreadCount,
+        setNotifications,
         clearLatestNotification,
+        API_ORIGIN,
       }}
     >
       {children}

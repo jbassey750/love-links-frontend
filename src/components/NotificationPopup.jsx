@@ -100,6 +100,13 @@ const NotificationPopup = () => {
     }, 300);
   };
 
+  const getNotificationText = (item) =>
+    item?.body ||
+    item?.message ||
+    item?.data?.message ||
+    item?.data?.body ||
+    "You have a new notification.";
+
   const getIcon = () => {
     switch (notification.type) {
       case "like":
@@ -175,9 +182,7 @@ const NotificationPopup = () => {
                 lineHeight: "1.4",
               }}
             >
-              {notification.body ||
-                notification.message ||
-                "You have a new notification."}
+              {getNotificationText(notification)}
             </p>
 
             <small
