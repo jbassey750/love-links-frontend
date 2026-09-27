@@ -6,32 +6,57 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState("verifying"); // "verifying" | "success" | "failed"
+  const [status, setStatus] = useState("verifying");
   const [message, setMessage] = useState("");
   const [points, setPoints] = useState(null);
 
   useEffect(() => {
     const verifyPayment = async () => {
       const transactionId = searchParams.get("transaction_id");
+      const flutterwaveStatus = searchParams.get("status");
 
+      // Flutterwave did not return a transaction ID
       if (!transactionId) {
         setStatus("failed");
         setMessage("Missing transaction reference.");
         return;
       }
 
+      // Payment was not successful on Flutterwave's side
+      if (
+        flutterwaveStatus &&
+        flutterwaveStatus.toLowerCase() !== "successful"
+      ) {
+        setStatus("failed");
+        setMessage("The payment was not completed.");
+        return;
+      }
+
       try {
         const response = await api.get(
-          `/payments/verify?transaction_id=${transactionId}`
+          `/payments/verify?transaction_id=${encodeURIComponent(
+            transactionId
+          )}`
         );
+
+        if (!response.data?.success) {
+          throw new Error(
+            response.data?.message || "Payment verification failed."
+          );
+        }
 
         setStatus("success");
         setMessage(response.data.message);
         setPoints(response.data.points);
       } catch (error) {
+        console.error("Payment verification error:", error);
+
         setStatus("failed");
+
         setMessage(
-          error.response?.data?.message || "Payment verification failed."
+          error.response?.data?.message ||
+            error.message ||
+            "Payment verification failed."
         );
       }
     };
@@ -52,8 +77,14 @@ const PaymentSuccess = () => {
               style={{ color: "#73112D" }}
               role="status"
             ></div>
-            <h4 className="fw-bold text-dark">Verifying your payment...</h4>
-            <p className="text-muted">Please don't close this page.</p>
+
+            <h4 className="fw-bold text-dark">
+              Verifying your payment...
+            </h4>
+
+            <p className="text-muted">
+              Please don't close this page.
+            </p>
           </>
         )}
 
@@ -69,13 +100,19 @@ const PaymentSuccess = () => {
             >
               <i className="bi bi-check-lg fs-2 text-success"></i>
             </div>
-            <h4 className="fw-bold text-dark">Payment Successful!</h4>
+
+            <h4 className="fw-bold text-dark">
+              Payment Successful!
+            </h4>
+
             <p className="text-muted">{message}</p>
+
             {points !== null && (
               <p className="fw-bold" style={{ color: "#73112D" }}>
                 New balance: {points} Points
               </p>
             )}
+
             <button
               className="btn text-white rounded-pill px-4 py-2 mt-3"
               style={{ backgroundColor: "#73112D" }}
@@ -98,8 +135,13 @@ const PaymentSuccess = () => {
             >
               <i className="bi bi-x-lg fs-2 text-danger"></i>
             </div>
-            <h4 className="fw-bold text-dark">Payment Failed</h4>
+
+            <h4 className="fw-bold text-dark">
+              Payment Failed
+            </h4>
+
             <p className="text-muted">{message}</p>
+
             <button
               className="btn text-white rounded-pill px-4 py-2 mt-3"
               style={{ backgroundColor: "#73112D" }}

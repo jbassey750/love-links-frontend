@@ -647,8 +647,8 @@ const Chat = (props) => {
   // Enter to new line
   // ---------------------------------------------------------
   const handleKeyDown = (e) => {
-  if (isSending) return;
-};
+    if (isSending) return;
+  };
 
   // ---------------------------------------------------------
   // Image selection
@@ -1195,10 +1195,14 @@ const Chat = (props) => {
                     )}
 
                     {/* Bubble */}
+
+                    {/* Bubble */}
                     <div
                       className="position-relative"
                       style={{
-                        maxWidth: "min(76%, 620px)",
+                        width: "fit-content",
+                        maxWidth: "min(78%, 620px)",
+                        minWidth: 0,
                       }}
                     >
                       <div
@@ -1242,7 +1246,9 @@ const Chat = (props) => {
                               fontSize: "0.9rem",
                               lineHeight: "1.55",
                               whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
+                              overflowWrap: "anywhere",
+                              wordBreak: "normal",
+                              margin: 0,
                             }}
                           >
                             {msg.text}
