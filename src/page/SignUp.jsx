@@ -777,7 +777,7 @@ const SignUpFlow = ({ onComplete }) => {
                   onChange={(e) =>
                     updateField("bio", e.target.value.slice(0, 300))
                   }
-                  placeholder="Software engineer, amateur baker, chronic overthinker. Here to meet real people."
+                  placeholder="Cosmetologist, amateur baker, chronic overthinker. Here to meet real people."
                   className={`form-control border-0 rounded-3 px-3 py-2.5 shadow-none ${errors.bio ? "is-invalid" : ""}`}
                   rows="4"
                   style={{

@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { ModeratorContext } from "../src/context/ModeratorContext";
+import { ModeratorContext } from "../../Enamora-Moderator/Frontend/src/context/ModeratorContext";
 
 export const useModerator = () => {
   const context = useContext(ModeratorContext);

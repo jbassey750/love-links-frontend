@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "../api/axios";
 import Loader from "../components/Loader";
 
@@ -15,6 +15,9 @@ const DiscoverUsers = () => {
   const [likeLoading, setLikeLoading] = useState(null);
   const [popupMessage, setPopupMessage] = useState("");
 
+  const searchRequestRef = useRef(0);
+  const searchTimerRef = useRef(null);
+
   // --------------------------------------------------
   // Popup
   // --------------------------------------------------
@@ -30,14 +33,22 @@ const DiscoverUsers = () => {
   // Fetch users
   // --------------------------------------------------
   const fetchUsers = async (customFilters = filters) => {
+    const requestId = ++searchRequestRef.current;
+
     try {
       setSearching(true);
 
       const params = {};
 
       Object.entries(customFilters).forEach(([key, value]) => {
-        if (value !== "" && value !== null && value !== undefined) {
-          params[key] = value;
+        const cleanedValue = typeof value === "string" ? value.trim() : value;
+
+        if (
+          cleanedValue !== "" &&
+          cleanedValue !== null &&
+          cleanedValue !== undefined
+        ) {
+          params[key] = cleanedValue;
         }
       });
 
@@ -45,11 +56,21 @@ const DiscoverUsers = () => {
         params,
       });
 
+      // Ignore an older request if a newer search has already started
+      if (requestId !== searchRequestRef.current) {
+        return;
+      }
+
       const payload =
         response.data?.users || response.data?.data || response.data || [];
 
       setUsers(Array.isArray(payload) ? payload : []);
     } catch (error) {
+      // Ignore cancelled/old requests
+      if (requestId !== searchRequestRef.current) {
+        return;
+      }
+
       console.error("Failed to fetch discover users:", error);
 
       showPopup(
@@ -59,8 +80,10 @@ const DiscoverUsers = () => {
 
       setUsers([]);
     } finally {
-      setLoading(false);
-      setSearching(false);
+      if (requestId === searchRequestRef.current) {
+        setLoading(false);
+        setSearching(false);
+      }
     }
   };
 
@@ -71,6 +94,26 @@ const DiscoverUsers = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    // Don't automatically search on the initial empty value
+    if (filters.search.trim() === "") {
+      return;
+    }
+
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    searchTimerRef.current = setTimeout(() => {
+      fetchUsers(filters);
+    }, 350);
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [filters.search]);
   // --------------------------------------------------
   // Handle filters
   // --------------------------------------------------
@@ -81,6 +124,18 @@ const DiscoverUsers = () => {
       ...prev,
       [name]: value,
     }));
+
+    if (name === "search") {
+      // Remove old search results immediately
+      setUsers([]);
+
+      // Show searching state while waiting for the new results
+      if (value.trim() !== "") {
+        setSearching(true);
+      } else {
+        setSearching(false);
+      }
+    }
   };
 
   // --------------------------------------------------
@@ -621,22 +676,28 @@ const DiscoverUsers = () => {
               <i className="bi bi-people fs-2"></i>
             </div>
 
-            <h5 className="fw-bold mb-2">No people found</h5>
+            <h5 className="fw-bold mb-2">
+              {searching ? "Searching..." : "No people found"}
+            </h5>
 
             <p className="text-muted mb-3" style={{ fontSize: "0.85rem" }}>
-              Try changing your search filters to find more people.
+              {searching
+                ? "Finding people that match your search..."
+                : "Try changing your search filters to find more people."}
             </p>
 
-            <button
-              onClick={handleReset}
-              className="btn rounded-pill px-4 text-white"
-              style={{
-                backgroundColor: "#73112d",
-                fontSize: "0.8rem",
-              }}
-            >
-              Reset Filters
-            </button>
+            {!searching && (
+              <button
+                onClick={handleReset}
+                className="btn rounded-pill px-4 text-white"
+                style={{
+                  backgroundColor: "#73112d",
+                  fontSize: "0.8rem",
+                }}
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
         )}
       </main>

@@ -68,11 +68,12 @@ const PAGE_CONFIG = {
 
 const Navbar = ({ location = "Amsterdam" }) => {
   const currentPath = useLocation().pathname;
+  const configPath = currentPath.startsWith("/chat/") ? "/chat" : currentPath;
   const { unreadCount } = useContext(NotificationContext);
   const hasUnreadNotifications = unreadCount > 0;
 
   // Fall back to default config if route is unlisted
-  const activeConfig = PAGE_CONFIG[currentPath] || {
+  const activeConfig = PAGE_CONFIG[configPath] || {
     subtitle: "Find Your Person",
     badgeLabel: location,
     badgeIcon: "bi-geo-alt-fill",

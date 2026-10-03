@@ -41,6 +41,7 @@ const formatValue = (value, fallback = "Not provided") => {
 };
 
 const ProfileInfo = ({ icon, label, value }) => {
+ 
   return (
     <div className="col-12 col-md-6">
       <div
@@ -91,6 +92,7 @@ const Profile = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -152,6 +154,10 @@ const Profile = () => {
   };
 
   const handleLogout = async () => {
+    if (signingOut) return;
+
+    setSigningOut(true);
+
     try {
       await api.post("/auth/logout");
 
@@ -861,14 +867,17 @@ const Profile = () => {
             <button
               type="button"
               onClick={handleLogout}
+              disabled={signingOut}
               className="btn w-100 rounded-4 py-3 bg-white fw-semibold"
               style={{
                 color: "#dc3545",
                 border: "1px solid rgba(220,53,69,0.25)",
               }}
             >
-              <i className="bi bi-box-arrow-right me-2" />
-              Sign Out
+              <i
+                className={`bi ${signingOut ? "bi-hourglass-split" : "bi-box-arrow-right"} me-2`}
+              />
+              {signingOut ? "Signing out..." : "Logout"}
             </button>
           </div>
         </div>

@@ -5,7 +5,11 @@ const Footer = () => {
   const location = useLocation();
 
   const isActive = (path) => {
-    return location.pathname === path;
+    return (
+      location.pathname === path ||
+      location.pathname.startsWith(`${path}/`) ||
+      (path === "/conversations" && location.pathname.startsWith("/chat/"))
+    );
   };
 
   return (
@@ -26,7 +30,7 @@ const Footer = () => {
           style={{ fontSize: "0.7rem" }}
         >
           <i className="bi bi-globe fs-4"></i>
-          {/* <span className="text-uppercase">Discover</span> */}
+          <span className="text-uppercase">Discover</span>
         </Link>
 
         {/* People */}
@@ -38,7 +42,7 @@ const Footer = () => {
           style={{ fontSize: "0.7rem" }}
         >
           <i className="bi bi-people fs-4"></i>
-          {/* <span className="text-uppercase">Discover</span> */}
+          <span className="text-uppercase">Discover</span>
         </Link>
 
         {/* Messages */}
@@ -50,7 +54,7 @@ const Footer = () => {
           style={{ fontSize: "0.7rem" }}
         >
           <i className="bi bi-chat-dots fs-4"></i>
-          {/* <span className="text-uppercase fw-semibold">Messages</span> */}
+          <span className="text-uppercase fw-semibold">Chat</span>
         </Link>
 
         {/* Profile */}
@@ -62,7 +66,7 @@ const Footer = () => {
           style={{ fontSize: "0.7rem" }}
         >
           <i className="bi bi-person fs-4"></i>
-          {/* <span className="text-uppercase fw-semibold">Profile</span> */}
+          <span className="text-uppercase fw-semibold">Profile</span>
         </Link>
       </div>
     </footer>

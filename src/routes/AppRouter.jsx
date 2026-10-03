@@ -1,14 +1,13 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import MainLayout from "../layouts/MainLayout";
-import ModeratorLayout from "../components/layout/ModeratorLayout";
 
 import Login from "../page/Login";
 import SignUp from "../page/SignUp";
 
 import Home from "../page/Home";
 import DiscoverUsers from "../page/DiscoverUsers";
-import Matches from "../page/Matches";
+// import Matches from "../page/Matches";
 import ConversationsList from "../page/ConversationsList";
 import Chat from "../page/Chat";
 import Profile from "../page/Profile";
@@ -22,9 +21,6 @@ import DiaryPage from "../page/user/DiaryPage";
 import UserProfile from "../page/user/UserProfile";
 import OTPVerification from "../page/user/OTPVerification";
 
-import MessagesPage from "../page/moderator/MessagesPage";
-import StatsPage from "../page/moderator/StatsPage";
-
 import AdminDashboard from "../page/admin/AdminDashboard";
 import AdminCreateData from "../page/admin/AdminCreateData";
 import ManagedAccountsPage from "../page/admin/ManagedAccountsPage";
@@ -34,17 +30,11 @@ import ADminNotifications from "../page/admin/AdminNotifications";
 import AdminMatches from "../page/admin/AdminMatches";
 import AdminChat from "../page/admin/AdminChat";
 
-import { ModeratorProvider } from "../context/ModeratorContext";
-import ModeratorLogin from "../page/moderator/ModeratorLogin";
-
 function AppRouter() {
   return (
     <Routes>
       <Route index element={<Login />} />
       <Route path="register" element={<SignUp />} />
-      <Route path="/moderate/logs/workspace" element={<ModeratorLogin />} />
-
-
       <Route path="admin/dashboard" element={<AdminDashboard />} />
       <Route path="admin/create-data" element={<AdminCreateData />} />
       <Route path="/admin/managed-accounts" element={<ManagedAccountsPage />} />
@@ -62,19 +52,6 @@ function AppRouter() {
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="*" element={<NotFound />} />
       <Route path="otp-verification" element={<OTPVerification />} />
-
-      <Route
-        path="/moderator/workspace"
-        element={
-          <ModeratorProvider>
-            <ModeratorLayout />
-          </ModeratorProvider>
-        }
-      >
-        <Route index element={<Navigate to="messages" replace />} /> 
-        <Route path="messages" element={<MessagesPage />} />
-        <Route path="stats" element={<StatsPage />} />
-      </Route>
 
       <Route element={<MainLayout />}>
         <Route path="discover" element={<Home />} />

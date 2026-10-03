@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
+import { useLocation } from "react-router-dom";
 import axios from "../api/axios";
 import { NotificationContext } from "./NotificationContext";
 
@@ -9,6 +10,12 @@ export const NotificationProvider = ({ children }) => {
   const [latestNotification, setLatestNotification] = useState(null);
 
   const socketRef = useRef(null);
+  const socketUserIdRef = useRef(null);
+  const loadedUserIdRef = useRef(null);
+  const notificationIdsRef = useRef(new Set());
+  const realtimeNotificationIdsRef = useRef(new Set());
+  const notificationEventVersionRef = useRef(0);
+  const location = useLocation();
 
   const API_URL =
     import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -23,7 +30,15 @@ export const NotificationProvider = ({ children }) => {
     if (!token) return null;
 
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
+      const encodedPayload = token.split(".")[1];
+      if (!encodedPayload) return null;
+
+      const base64Payload = encodedPayload
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+      const payload = JSON.parse(
+        atob(base64Payload.padEnd(Math.ceil(base64Payload.length / 4) * 4, "="))
+      );
 
       return (
         payload?.id ||
@@ -71,6 +86,8 @@ export const NotificationProvider = ({ children }) => {
   // ==========================================
 
   const refreshNotifications = async () => {
+    const requestEventVersion = notificationEventVersionRef.current;
+
     try {
       const response = await axios.get("/notifications");
 
@@ -81,7 +98,36 @@ export const NotificationProvider = ({ children }) => {
         [];
 
       if (Array.isArray(notificationsPayload)) {
-        setNotifications(notificationsPayload);
+        const fetchedIds = new Set(
+          notificationsPayload
+            .map((item) => item?._id || item?.id)
+            .filter(Boolean)
+            .map((id) => id.toString())
+        );
+
+        setNotifications((current) => {
+          const liveNotifications =
+            notificationEventVersionRef.current !== requestEventVersion
+              ? current.filter((item) => {
+                  const id = item?._id || item?.id;
+                  return (
+                    id &&
+                    realtimeNotificationIdsRef.current.has(id.toString()) &&
+                    !fetchedIds.has(id.toString())
+                  );
+                })
+              : [];
+          const merged = [...liveNotifications, ...notificationsPayload];
+
+          notificationIdsRef.current = new Set(
+            merged
+              .map((item) => item?._id || item?.id)
+              .filter(Boolean)
+              .map((id) => id.toString())
+          );
+
+          return merged;
+        });
       }
     } catch (error) {
       console.error(
@@ -91,29 +137,50 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // ==========================================
-  // Initial unread count
-  // ==========================================
-
-  useEffect(() => {
-    refreshUnreadCount();
-    refreshNotifications();
-  }, []);
-
-  // ==========================================
-  // Socket.IO
-  // ==========================================
-
+  // Connect once a user token is available, including after SPA login.
   useEffect(() => {
     const userId = getCurrentUserId();
 
     if (!userId) {
-      console.log(
-        "No logged-in user found. Notification socket will not connect."
-      );
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        socketUserIdRef.current = null;
+      }
+
+      if (loadedUserIdRef.current) {
+        loadedUserIdRef.current = null;
+        notificationIdsRef.current.clear();
+        realtimeNotificationIdsRef.current.clear();
+        setNotifications([]);
+        setUnreadCount(0);
+        setLatestNotification(null);
+      }
 
       return;
     }
+
+    const normalizedUserId = userId.toString();
+
+    if (loadedUserIdRef.current !== normalizedUserId) {
+      loadedUserIdRef.current = normalizedUserId;
+      notificationIdsRef.current.clear();
+      realtimeNotificationIdsRef.current.clear();
+      setNotifications([]);
+      setUnreadCount(0);
+      setLatestNotification(null);
+      refreshUnreadCount();
+      refreshNotifications();
+    }
+
+    if (
+      socketRef.current &&
+      socketUserIdRef.current === normalizedUserId
+    ) {
+      return;
+    }
+
+    socketRef.current?.disconnect();
 
     console.log(
       "Connecting notification socket:",
@@ -130,6 +197,7 @@ export const NotificationProvider = ({ children }) => {
     });
 
     socketRef.current = socket;
+  socketUserIdRef.current = normalizedUserId;
 
     // ------------------------------------------
     // Socket connected
@@ -143,10 +211,10 @@ export const NotificationProvider = ({ children }) => {
 
       console.log(
         "👤 Joining notification room:",
-        userId
+        normalizedUserId
       );
 
-      socket.emit("join-user", userId.toString());
+      socket.emit("join-user", normalizedUserId);
     });
 
     // ------------------------------------------
@@ -175,26 +243,24 @@ export const NotificationProvider = ({ children }) => {
       const notificationId =
         notification?._id || notification?.id;
 
+      const normalizedNotificationId = notificationId?.toString();
+
+      if (
+        normalizedNotificationId &&
+        notificationIdsRef.current.has(normalizedNotificationId)
+      ) {
+        return;
+      }
+
+      if (normalizedNotificationId) {
+        notificationIdsRef.current.add(normalizedNotificationId);
+        realtimeNotificationIdsRef.current.add(normalizedNotificationId);
+      }
+
+      notificationEventVersionRef.current += 1;
+
       // Add notification to global notification list
       setNotifications((prev) => {
-        if (!notificationId) {
-          return [notification, ...prev];
-        }
-
-        const alreadyExists = prev.some((item) => {
-          const existingId =
-            item?._id || item?.id;
-
-          return (
-            existingId?.toString() ===
-            notificationId?.toString()
-          );
-        });
-
-        if (alreadyExists) {
-          return prev;
-        }
-
         return [notification, ...prev];
       });
 
@@ -322,6 +388,14 @@ export const NotificationProvider = ({ children }) => {
       socket.disconnect();
 
       socketRef.current = null;
+    };
+  }, [location.pathname]);
+
+  useEffect(() => {
+    return () => {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      socketUserIdRef.current = null;
     };
   }, []);
 
