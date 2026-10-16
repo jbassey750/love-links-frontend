@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
@@ -13,12 +13,12 @@ const PaymentSuccess = () => {
   useEffect(() => {
     const verifyPayment = async () => {
       const transactionId = searchParams.get("transaction_id");
+      const transactionReference = searchParams.get("tx_ref");
       const flutterwaveStatus = searchParams.get("status");
 
-      // Flutterwave did not return a transaction ID
-      if (!transactionId) {
+      if (!transactionId || !transactionReference) {
         setStatus("failed");
-        setMessage("Missing transaction reference.");
+        setMessage("Missing payment verification details.");
         return;
       }
 
@@ -33,11 +33,10 @@ const PaymentSuccess = () => {
       }
 
       try {
-        const response = await api.get(
-          `/payments/verify?transaction_id=${encodeURIComponent(
-            transactionId
-          )}`
-        );
+        const response = await api.post("/payments/return/verify", {
+          transaction_id: transactionId,
+          tx_ref: transactionReference,
+        });
 
         if (!response.data?.success) {
           throw new Error(
@@ -47,9 +46,12 @@ const PaymentSuccess = () => {
 
         setStatus("success");
         setMessage(response.data.message);
-        setPoints(response.data.points);
+        setPoints(response.data.pointsAdded);
       } catch (error) {
-        console.error("Payment verification error:", error);
+        console.error(
+          "Payment verification error:",
+          error.response?.status || error.message,
+        );
 
         setStatus("failed");
 
@@ -109,7 +111,7 @@ const PaymentSuccess = () => {
 
             {points !== null && (
               <p className="fw-bold" style={{ color: "#73112D" }}>
-                New balance: {points} Points
+                Points added: {points} Points
               </p>
             )}
 

@@ -3,19 +3,19 @@ import { useNavigate, useLocation } from "react-router-dom";
 import api from "../../api/axios";
 
 const OTPVerification = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { userId, email, resendCooldown } = location.state || {};
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [timer, setTimer] = useState(30);
-  const [canResend, setCanResend] = useState(false);
+  const [timer, setTimer] = useState(Number(resendCooldown) || 0);
+  const [canResend, setCanResend] = useState(!(Number(resendCooldown) > 0));
   const [isVerifying, setIsVerifying] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const inputRefs = useRef([]);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   // Pulled from login page redirect: navigate("/otp-verification", { state: { userId, email } })
-  const { userId, email } = location.state || {};
 
   // Redirect back to login if someone lands here without going through login first
   useEffect(() => {
@@ -126,18 +126,22 @@ const OTPVerification = () => {
 
     try {
       // Re-triggers OTP generation on the backend (adjust endpoint if you have a dedicated one)
-      await api.post("/otp/send", { userId });
+      const response = await api.post("/otp/send", { userId });
       setSuccessMessage("A new code has been sent.");
+      setOtp(["", "", "", "", "", ""]);
+      setTimer(Number(response.data?.resendCooldown) || 60);
+      setCanResend(false);
+      inputRefs.current[0].focus();
     } catch (err) {
       setErrorMessage(
         err.response?.data?.message || "Couldn't resend code. Try again shortly."
       );
+      const retryAfter = Number(err.response?.data?.retryAfter) || 0;
+      if (retryAfter > 0) {
+        setTimer(retryAfter);
+        setCanResend(false);
+      }
     }
-
-    setOtp(["", "", "", "", "", ""]);
-    setTimer(30);
-    setCanResend(false);
-    inputRefs.current[0].focus();
   };
 
   return (

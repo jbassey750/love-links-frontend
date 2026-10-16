@@ -17,12 +17,8 @@ const Login = () => {
     setLoading(true);
     setError("");
 
-    console.debug("[Frontend] Login submit", { email });
-
     try {
       const response = await api.post("/auth/login", { email, password });
-
-      console.debug("[Frontend] Login response", response.data);
 
       if (response.data.requiresOTP) {
         navigate("/otp-verification", {
@@ -30,6 +26,7 @@ const Login = () => {
             email: response.data.email || email,
             userId: response.data.userId,
             fullName: response.data.fullName,
+            resendCooldown: response.data.resendCooldown,
           },
         });
         return;
@@ -66,26 +63,24 @@ const Login = () => {
       }
     } catch (err) {
       const backendMessage = err.response?.data?.message;
-      const requiresOTP =
-        err.response?.data?.requiresOTP || err.response?.status === 429;
+      const requiresOTP = err.response?.data?.requiresOTP === true;
       const userId = err.response?.data?.userId;
       const otpEmail = err.response?.data?.email || email;
+      const emailSent = err.response?.data?.emailSent === true;
 
       console.error("[Frontend] Login error", {
         status: err.response?.status,
-        message: err.message,
-        response: err.response?.data,
-        url: err.config?.url,
-        baseURL: err.config?.baseURL,
+        message: backendMessage || err.message,
       });
 
       // Handle OTP verification
-      if (requiresOTP && userId) {
+      if (requiresOTP && emailSent && userId) {
         navigate("/otp-verification", {
           state: {
             email: otpEmail,
             userId,
             fullName: err.response?.data?.fullName || "",
+            resendCooldown: err.response?.data?.resendCooldown,
           },
         });
         return;

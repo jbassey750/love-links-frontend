@@ -231,7 +231,7 @@ const DatePlannerPage = () => {
       style={{ backgroundColor: "#fbf6f0" }}
     >
       <main className="px-3 px-md-4 py-3 mx-auto" style={{ maxWidth: "800px" }}>
-        <div className="d-flex align-items-center justify-content-between mb-4">
+        <div className="d-flex align-items-center justify-content-between mb-4"> 
           <div className="btn-group bg-white rounded-pill p-1 shadow-sm">
             <button
               onClick={() => setActiveTab("upcoming")}

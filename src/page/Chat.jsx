@@ -53,8 +53,16 @@ const Chat = (props) => {
   const [showUnavailableModal, setShowUnavailableModal] = useState(false);
   const [showPointsModal, setShowPointsModal] = useState(false);
 
+  const premiumSubscription = currentUser?.subscription;
+  const hasActivePremiumSubscription =
+    ["premium", "elite"].includes(premiumSubscription?.plan) &&
+    premiumSubscription.status === "active" &&
+    (!premiumSubscription.endDate ||
+      new Date(premiumSubscription.endDate) > new Date());
   const canChatForFree =
-    currentUser?.role === "admin" || currentUser?.role === "premium";
+    currentUser?.role === "admin" ||
+    currentUser?.role === "premium" ||
+    hasActivePremiumSubscription;
 
   const displayBalance = canChatForFree
     ? "Unlimited"
@@ -70,7 +78,16 @@ const Chat = (props) => {
   // Media
   // ---------------------------------------------------------
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [showMobileMediaMenu, setShowMobileMediaMenu] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (selectedImage?.startsWith("blob:")) {
+        URL.revokeObjectURL(selectedImage);
+      }
+    };
+  }, [selectedImage]);
 
   // ---------------------------------------------------------
   // Profile modal
@@ -91,6 +108,7 @@ const Chat = (props) => {
   const mediaMenuRef = useRef(null);
   const socketRef = useRef(null);
   const userJoinedRef = useRef(false);
+  const messageImageUrlsRef = useRef(new Set());
 
   // ---------------------------------------------------------
   // Get current user ID from JWT
@@ -149,6 +167,27 @@ const Chat = (props) => {
             minute: "2-digit",
           }),
     };
+  };
+
+  const loadMessageImage = async (msg, isActive = () => true) => {
+    const existingImage = msg.image || msg.mediaUrl;
+    if (existingImage) return existingImage;
+    if (!msg.imageFileId || !(msg._id || msg.id)) return null;
+
+    try {
+      const response = await axios.get(
+        `/messages/${msg._id || msg.id}/image`,
+        { responseType: "blob" },
+      );
+      if (!isActive()) return null;
+
+      const imageUrl = URL.createObjectURL(response.data);
+      messageImageUrlsRef.current.add(imageUrl);
+      return imageUrl;
+    } catch (imageError) {
+      console.error("Failed to load chat image:", imageError.message);
+      return null;
+    }
   };
 
   const onBack = props.onBack;
@@ -276,7 +315,15 @@ const Chat = (props) => {
             formatMessage(msg, currentUserId),
           );
 
-          setMessages(formattedMessages);
+          const messagesWithImages = await Promise.all(
+            rawMessages.map(async (msg, index) => ({
+              ...formattedMessages[index],
+              image: await loadMessageImage(msg, () => isMounted),
+            })),
+          );
+
+          if (!isMounted) return;
+          setMessages(messagesWithImages);
           setLoading(false);
         }
       } catch (err) {
@@ -292,8 +339,11 @@ const Chat = (props) => {
 
     fetchChatData();
 
+    const imageUrls = messageImageUrlsRef.current;
     return () => {
       isMounted = false;
+      imageUrls.forEach((imageUrl) => URL.revokeObjectURL(imageUrl));
+      imageUrls.clear();
     };
   }, [currentChatId]);
 
@@ -324,7 +374,8 @@ const Chat = (props) => {
       }
     });
 
-    socketRef.current.on("new-message", (incomingMsg) => {
+    const socket = socketRef.current;
+    socket.on("new-message", async (incomingMsg) => {
       const incomingChatId =
         incomingMsg.chat?._id ||
         incomingMsg.chat?.toString?.() ||
@@ -357,28 +408,13 @@ const Chat = (props) => {
         return;
       }
 
-      const formattedMsg = {
-        id: incomingMsg.id || incomingMsg._id || Date.now().toString(),
+      const formattedMsg = formatMessage(incomingMsg, currentUserId);
+      formattedMsg.image = await loadMessageImage(
+        incomingMsg,
+        () => socketRef.current === socket,
+      );
 
-        senderId: senderIdentifier,
-
-        isMine: senderIdentifier === currentUserId,
-
-        text:
-          incomingMsg.message || incomingMsg.text || incomingMsg.content || "",
-
-        image: incomingMsg.image || incomingMsg.mediaUrl || null,
-
-        time: incomingMsg.createdAt
-          ? new Date(incomingMsg.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-      };
+      if (socketRef.current !== socket) return;
 
       setMessages((prev) => {
         if (prev.some((msg) => msg.id === formattedMsg.id)) {
@@ -514,32 +550,38 @@ const Chat = (props) => {
   const handleSendMessage = async (e) => {
     e?.preventDefault();
 
-    // Prevent multiple messages from being sent while
-    // the previous request is still processing.
-    if (!message.trim() || isSending) return;
+    if ((!message.trim() && !selectedImageFile) || isSending) return;
 
     setIsSending(true);
     setError(null);
     setShowApiErrorModal(false);
     setShowPointsModal(false);
 
-    const messageToSend = message.trim();
-
-    const payload = {
-      chatId: currentChatId,
-      message: messageToSend,
-      messageType: "text",
-    };
-
-    console.log("Sending chat message payload", payload);
-
     try {
-      const response = await axios.post("/messages", payload);
+      const messageToSend = message.trim();
+      let requestBody;
 
-      console.log("Chat message API response", response.data);
+      if (selectedImageFile) {
+        requestBody = new FormData();
+        requestBody.append("chatId", currentChatId);
+        requestBody.append("message", messageToSend);
+        requestBody.append("messageType", "image");
+        requestBody.append("image", selectedImageFile);
+      } else {
+        requestBody = {
+          chatId: currentChatId,
+          message: messageToSend,
+          messageType: "text",
+        };
+      }
 
+      const response = await axios.post("/messages", requestBody);
       const apiPayload = response.data || {};
       const returnedMessage = apiPayload.data || apiPayload;
+
+      if (!apiPayload.success || !returnedMessage) {
+        throw new Error(apiPayload.message || "Failed to send message.");
+      }
 
       const pointCost = apiPayload.pointCost ?? 0;
       const remainingPoints = apiPayload.remainingPoints;
@@ -548,6 +590,7 @@ const Chat = (props) => {
         currentUser?.id || currentUser?._id || getCurrentUserId() || "",
       );
 
+      const messageImage = await loadMessageImage(returnedMessage);
       const formattedMsg = {
         id: String(
           returnedMessage._id || returnedMessage.id || `temp-${Date.now()}`,
@@ -555,7 +598,7 @@ const Chat = (props) => {
         senderId: currentUserId,
         isMine: true,
         text: returnedMessage.message || returnedMessage.text || messageToSend,
-        image: returnedMessage.image || returnedMessage.mediaUrl || null,
+        image: messageImage,
         time: returnedMessage.createdAt
           ? new Date(returnedMessage.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
@@ -578,8 +621,8 @@ const Chat = (props) => {
       // Clear the input only after the server
       // confirms that the message was successfully sent.
       setMessage("");
-
       setSelectedImage(null);
+      setSelectedImageFile(null);
       setShowMobileMediaMenu(false);
 
       if (typeof remainingPoints === "number") {
@@ -635,7 +678,10 @@ const Chat = (props) => {
         setShowApiErrorModal(true);
       }
 
-      console.error("Message send failed:", err);
+      console.error(
+        "Message send failed:",
+        err?.response?.status || err?.message,
+      );
     } finally {
       // Re-enable the send button only after the request
       // has completely finished.
@@ -653,15 +699,37 @@ const Chat = (props) => {
   // ---------------------------------------------------------
   // Image selection
   // ---------------------------------------------------------
+
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
 
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
+    if (!file) return;
 
-      setSelectedImage(imageUrl);
-      setShowMobileMediaMenu(false);
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowedImageTypes.includes(file.type)) {
+      setApiErrorMessage("Please select a JPG, PNG, or WEBP image.");
+      setShowApiErrorModal(true);
+      e.target.value = "";
+      return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setApiErrorMessage("Images must be 5 MB or smaller.");
+      setShowApiErrorModal(true);
+      e.target.value = "";
+      return;
+    }
+
+    // Keep the actual file for uploading.
+    setSelectedImageFile(file);
+
+    // Keep the existing preview UI.
+    setSelectedImage(URL.createObjectURL(file));
+    setShowMobileMediaMenu(false);
+
+    // Allow the same file to be selected again later.
+    e.target.value = "";
   };
 
   // ---------------------------------------------------------
@@ -1176,7 +1244,7 @@ const Chat = (props) => {
                       msg.isMine ? "flex-row-reverse" : ""
                     }`}
                     style={{
-                      maxWidth: "100%",
+                       maxWidth: "min(85%, 620px)",
                     }}
                   >
                     {/* Received avatar */}
@@ -1200,8 +1268,6 @@ const Chat = (props) => {
                     <div
                       className="position-relative"
                       style={{
-                        width: "fit-content",
-                        maxWidth: "min(78%, 620px)",
                         minWidth: 0,
                       }}
                     >
@@ -1246,7 +1312,7 @@ const Chat = (props) => {
                               fontSize: "0.9rem",
                               lineHeight: "1.55",
                               whiteSpace: "pre-wrap",
-                              overflowWrap: "anywhere",
+                              overflowWrap: "break-word",
                               wordBreak: "normal",
                               margin: 0,
                             }}
@@ -1329,7 +1395,10 @@ const Chat = (props) => {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedImage(null)}
+                  onClick={() => {
+                    setSelectedImage(null);
+                    setSelectedImageFile(null);
+                  }}
                   className="btn rounded-circle position-absolute d-flex align-items-center justify-content-center p-0"
                   style={{
                     width: "22px",
@@ -1573,7 +1642,7 @@ const Chat = (props) => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImageSelect}
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="d-none"
               />
 
@@ -1605,7 +1674,7 @@ const Chat = (props) => {
               {/* Send */}
               <button
                 type="submit"
-                disabled={!message.trim()}
+                disabled={(!message.trim() && !selectedImageFile) || isSending}
                 className="btn rounded-circle d-flex align-items-center justify-content-center p-0 flex-shrink-0 mb-1"
                 style={{
                   width: "44px",
@@ -1613,7 +1682,7 @@ const Chat = (props) => {
                   backgroundColor: "#73112d",
                   color: "#fff",
                   border: "none",
-                  opacity: message.trim() ? 1 : 0.5,
+                  opacity: message.trim() || selectedImageFile ? 1 : 0.5,
                   transition: "all 0.2s ease",
                 }}
                 aria-label="Send message"

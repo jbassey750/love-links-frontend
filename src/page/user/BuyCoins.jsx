@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 import OrderSummaryModal from "../../components/OrderSummaryModal";
 import PaymentResultModal from "../../components/PaymentResultModal";
 import api from "../../api/axios";
 
 const BuyCoins = () => {
-  const [userBalance, setUserBalance] = useState(12);
+  const [userBalance, setUserBalance] = useState(0);
+  const [loadingBalance, setLoadingBalance] = useState(true);
 
   // Packages from backend
   const [packages, setPackages] = useState([]);
@@ -34,8 +36,6 @@ const BuyCoins = () => {
 
         const response = await api.get("packages");
 
-        console.log("Packages response:", response.data);
-
         /*
           Your backend may return:
 
@@ -59,7 +59,10 @@ const BuyCoins = () => {
 
         setPackages(Array.isArray(fetchedPackages) ? fetchedPackages : []);
       } catch (error) {
-        console.error("Failed to fetch packages:", error);
+        console.error(
+          "Failed to fetch packages:",
+          error.response?.status || error.message,
+        );
 
         setPackageError(
           error.response?.data?.message ||
@@ -73,6 +76,40 @@ const BuyCoins = () => {
     };
 
     fetchPackages();
+  }, []);
+
+  // FETCH USER'S CURRENT POINTS BALANCE
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchBalance = async () => {
+      try {
+        setLoadingBalance(true);
+
+        const response = await api.get("/profile/me");
+
+        const profileUser = response.data?.user || response.data;
+
+        if (isMounted && profileUser) {
+          setUserBalance(Number(profileUser.points) || 0);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to fetch points balance:",
+          error.response?.status || error.message,
+        );
+      } finally {
+        if (isMounted) {
+          setLoadingBalance(false);
+        }
+      }
+    };
+
+    fetchBalance();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // ============================================================
@@ -106,7 +143,10 @@ const BuyCoins = () => {
         setResultModalState({ isOpen: true, isSuccess: false });
       }
     } catch (error) {
-      console.error("Checkout initialization failed:", error);
+      console.error(
+        "Checkout initialization failed:",
+        error.response?.status || error.message,
+      );
       setIsProcessing(false);
       setShowSummaryModal(false);
       setResultModalState({ isOpen: true, isSuccess: false });
@@ -178,52 +218,109 @@ const BuyCoins = () => {
       }}
     >
       {/* Header */}
-      <header className="px-3 px-md-4 py-3 bg-white border-bottom sticky-top shadow-sm z-3">
+
+      <header
+        className="sticky-top bg-white border-bottom shadow-sm"
+        style={{ zIndex: 1030 }}
+      >
         <div
-          className="mx-auto w-100 d-flex align-items-center justify-content-between"
-          style={{ maxWidth: "1000px" }}
+          className="container-fluid px-3 px-md-4 py-3"
+          style={{ maxWidth: "1100px" }}
         >
-          <div className="d-flex align-items-center gap-2">
-            <div
-              className="d-flex align-items-center justify-content-center rounded-circle"
+          <div className="d-flex align-items-center justify-content-between gap-2 gap-md-3">
+            {/* Back Button */}
+            <Link
+              to="/profile/me"
+              className="d-inline-flex align-items-center justify-content-center rounded-circle text-dark text-decoration-none flex-shrink-0"
+              aria-label="Back to profile"
               style={{
-                width: "38px",
-                height: "38px",
-                backgroundColor: "#FFF0F3",
+                width: "42px",
+                height: "42px",
+                backgroundColor: "#F8F8F8",
+                border: "1px solid #EEEEEE",
+                transition: "background-color 0.2s ease",
               }}
             >
-              <i className="bi bi-heart-fill text-danger fs-5"></i>
-            </div>
+              <i className="bi bi-arrow-left fs-5"></i>
+            </Link>
 
-            <h1
-              className="m-0 fs-4 fw-bold text-dark"
-              style={{ fontFamily: "Georgia, serif" }}
-            >
-              Get Chat Points
-            </h1>
-          </div>
-
-          {/* Dynamic Balance Display */}
-          <div
-            className="d-flex align-items-center gap-2 px-3 py-1.5 rounded-pill shadow-sm"
-            style={{
-              backgroundColor: "#FFF8F9",
-              border: "1px solid #F5D0D8",
-            }}
-          >
-            <i className="bi bi-coin" style={{ color: "#D97706" }}></i>
-
-            <span className="fw-bold text-dark" style={{ fontSize: "0.85rem" }}>
-              Balance:{" "}
-              <span
+            {/* Page Title */}
+            <div className="d-flex align-items-center gap-2 gap-md-3 flex-grow-1 min-w-0">
+              <div
+                className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
                 style={{
-                  color: "#73112D",
-                  fontWeight: "800",
+                  width: "42px",
+                  height: "42px",
+                  backgroundColor: "#FFF0F3",
                 }}
               >
-                {userBalance} Points
-              </span>
-            </span>
+                <i className="bi bi-heart-fill text-danger fs-5"></i>
+              </div>
+
+              <div className="min-w-0">
+                <h1
+                  className="m-0 fw-bold text-dark"
+                  style={{
+                    fontFamily: "Georgia, serif",
+                    fontSize: "clamp(1rem, 3.5vw, 1.5rem)",
+                    lineHeight: 1.25,
+                  }}
+                >
+                  Get Chat Points
+                </h1>
+
+                <p
+                  className="d-none d-sm-block mb-0 mt-1 text-secondary"
+                  style={{ fontSize: "0.78rem" }}
+                >
+                  Keep the conversation going
+                </p>
+              </div>
+            </div>
+
+            {/* Dynamic Points Balance */}
+            <div
+              className="d-flex align-items-center gap-2 rounded-pill flex-shrink-0"
+              style={{
+                backgroundColor: "#FFF8F9",
+                border: "1px solid #F5D0D8",
+                padding: "9px 12px",
+                boxShadow: "0 2px 6px rgba(115, 17, 45, 0.05)",
+              }}
+            >
+              <i
+                className="bi bi-coin"
+                style={{ color: "#D97706", fontSize: "1.1rem" }}
+              ></i>
+
+              <div className="d-flex flex-column" style={{ lineHeight: 1.2 }}>
+                <span
+                  className="text-secondary d-none d-sm-block"
+                  style={{ fontSize: "0.68rem" }}
+                >
+                  Your balance
+                </span>
+
+                <span
+                  className="fw-bold text-nowrap"
+                  style={{
+                    color: "#73112D",
+                    fontSize: "clamp(0.7rem, 2.5vw, 0.9rem)",
+                  }}
+                >
+                  {loadingBalance ? (
+                    <span
+                      className="spinner-border spinner-border-sm"
+                      role="status"
+                    />
+                  ) : (
+                    userBalance
+                  )}{" "}
+                  <span className="d-none d-sm-inline">Points</span>
+                  <span className="d-inline d-sm-none"> pts</span>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </header>
