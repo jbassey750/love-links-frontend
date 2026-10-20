@@ -4,6 +4,8 @@ import MainLayout from "../layouts/MainLayout";
 
 import Login from "../page/Login";
 import SignUp from "../page/SignUp";
+import ForgotPassword from "../page/user/ForgotPassword";
+import ResetPassword from "../page/user/ResetPassword";
 
 import Home from "../page/Home";
 import DiscoverUsers from "../page/DiscoverUsers";
@@ -35,6 +37,9 @@ function AppRouter() {
     <Routes>
       <Route index element={<Login />} />
       <Route path="register" element={<SignUp />} />
+      <Route path="forgot-password" element={<ForgotPassword />} />
+      <Route path="reset-password/:token" element={<ResetPassword />} />
+
       <Route path="admin/dashboard" element={<AdminDashboard />} />
       <Route path="admin/create-data" element={<AdminCreateData />} />
       <Route path="/admin/managed-accounts" element={<ManagedAccountsPage />} />

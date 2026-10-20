@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import AdminNavbar from "./adminHearder";
@@ -8,27 +9,27 @@ const AdminMatches = () => {
 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [pokingMatchId, setPokingMatchId] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [pokingMatchId, setPokingMatchId] = useState(null);
 
-  // =========================================================
   // Load active matches
-  // =========================================================
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
       setError("");
 
       const response = await api.get("/admin/matches");
 
-      console.log("========== ADMIN MATCHES ==========");
-      console.log(response.data);
-      console.log("===================================");
-
       if (!response.data?.success) {
         throw new Error(
-          response.data?.message || "Unable to load matches.",
+          response.data?.message || "Unable to load matches."
         );
       }
 
@@ -39,146 +40,191 @@ const AdminMatches = () => {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Unable to load matches.",
+          "Unable to load matches."
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadMatches();
-  }, []);
+  }, [loadMatches]);
 
-  // =========================================================
-  // Poke matched user
-  // =========================================================
-  const handlePoke = async (matchId) => {
+  // Send a match reminder
+  const handlePoke = async (match) => {
+    if (!match?._id || pokingMatchId) return;
+
+    const users = Array.isArray(match.users) ? match.users : [];
+    const realUsers = users.filter(
+      (user) => user?.accountType === "real"
+    );
+
+    if (realUsers.length === 0) {
+      setError(
+        "This match has no eligible real user to receive a reminder."
+      );
+      setSuccessMessage("");
+      return;
+    }
+
+    const recipientNames = realUsers
+      .map((user) => user.fullName || user.username || "Real user")
+      .join(", ");
+
+    const confirmed = window.confirm(
+      `Send a match reminder to ${recipientNames}?\n\n` +
+        "The recipient will receive a notification that their match is waiting."
+    );
+
+    if (!confirmed) return;
+
     try {
-      setPokingMatchId(matchId);
+      setPokingMatchId(match._id);
       setError("");
       setSuccessMessage("");
 
       const response = await api.post(
-        `/admin/matches/${matchId}/poke`,
+        `/admin/matches/${match._id}/poke`
       );
-
-      console.log("Poke response:", response.data);
 
       if (!response.data?.success) {
         throw new Error(
-          response.data?.message || "Unable to send reminder.",
+          response.data?.message || "Unable to send reminder."
         );
       }
 
-      setSuccessMessage("Match reminder sent successfully.");
-
-      setTimeout(() => {
-        setSuccessMessage("");
-      }, 4000);
+      setSuccessMessage(
+        response.data?.message || "Match reminder sent successfully."
+      );
     } catch (err) {
       console.error("Poke error:", err);
 
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Unable to send match reminder.",
+          "Unable to send match reminder."
       );
     } finally {
       setPokingMatchId(null);
     }
   };
 
-  // =========================================================
-  // Open chat
-  // =========================================================
+  // Open admin chat
   const handleOpenChat = (chatId) => {
-    if (!chatId) {
+    const id =
+      typeof chatId === "object" ? chatId?._id : chatId;
+
+    if (!id) {
       setError("This match does not have a chat yet.");
+      setSuccessMessage("");
       return;
     }
 
-    navigate(`/admin/chats/${chatId}`);
+    navigate(`/admin/chats/${id}`);
   };
 
-  // =========================================================
   // Account type badge
-  // =========================================================
   const getAccountBadge = (user) => {
     if (!user) return null;
 
     if (user.accountType === "fake") {
       return (
         <span className="badge rounded-pill bg-secondary-subtle text-secondary px-3 py-2">
-          <i className="bi bi-shield-check me-1"></i>
+          <i className="bi bi-shield-check me-1" />
           Fake Account
         </span>
       );
     }
 
-    if (user.role === "premium") {
+    if (user.accountType === "real" && user.role === "premium") {
       return (
         <span className="badge rounded-pill bg-warning-subtle text-warning-emphasis px-3 py-2">
-          <i className="bi bi-star-fill me-1"></i>
+          <i className="bi bi-star-fill me-1" />
           Premium
         </span>
       );
     }
 
+    if (user.accountType === "real") {
+      return (
+        <span className="badge rounded-pill bg-primary-subtle text-primary px-3 py-2">
+          <i className="bi bi-person-check me-1" />
+          Real User
+        </span>
+      );
+    }
+
     return (
-      <span className="badge rounded-pill bg-primary-subtle text-primary px-3 py-2">
-        <i className="bi bi-person-check me-1"></i>
-        Real User
+      <span className="badge rounded-pill bg-light text-dark px-3 py-2">
+        Unknown Account Type
       </span>
     );
   };
 
-  // =========================================================
   // Format date
-  // =========================================================
   const formatDate = (date) => {
     if (!date) return "No activity";
 
-    return new Date(date).toLocaleString([], {
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "No activity";
+    }
+
+    return parsedDate.toLocaleString([], {
       dateStyle: "medium",
       timeStyle: "short",
     });
   };
 
-  // =========================================================
-  // Avatar helper
-  // =========================================================
+  // Avatar URL
   const getAvatarUrl = (photo) => {
     if (!photo) return null;
 
+    // Support either a photo URL string or a photo object.
+    const photoValue =
+      typeof photo === "string"
+        ? photo
+        : photo.url || photo.path || photo.filename || "";
+
+    if (!photoValue) return null;
+
     if (
-      photo.startsWith("http://") ||
-      photo.startsWith("https://")
+      photoValue.startsWith("http://") ||
+      photoValue.startsWith("https://")
     ) {
-      return photo;
+      return photoValue;
     }
 
-    return `https://love-links.miinify.com/uploads/${photo}`;
+    return `https://love-links.miinify.com/uploads/${photoValue.replace(
+      /^\/+/,
+      ""
+    )}`;
   };
 
-  // =========================================================
-  // User Card
-  // =========================================================
+  // User card
   const UserCard = ({ user }) => {
     const avatar = getAvatarUrl(user?.photo);
+    const displayName =
+      user?.fullName || user?.username || "Unknown User";
 
     return (
       <div className="d-flex align-items-center w-100">
         {avatar ? (
           <img
             src={avatar}
-            alt={user?.fullName || "User"}
+            alt={displayName}
             className="rounded-circle shadow-sm flex-shrink-0"
             style={{
               width: "68px",
               height: "68px",
               objectFit: "cover",
               border: "3px solid #f1f1f1",
+            }}
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
             }}
           />
         ) : (
@@ -192,7 +238,7 @@ const AdminMatches = () => {
               border: "3px solid #f1f1f1",
             }}
           >
-            {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
+            {displayName.charAt(0).toUpperCase() || "U"}
           </div>
         )}
 
@@ -201,7 +247,7 @@ const AdminMatches = () => {
             className="mb-1 fw-semibold text-dark text-truncate"
             style={{ maxWidth: "230px" }}
           >
-            {user?.fullName || "Unknown User"}
+            {displayName}
           </h5>
 
           <div className="text-muted small mb-2 text-truncate">
@@ -214,9 +260,7 @@ const AdminMatches = () => {
     );
   };
 
-  // =========================================================
-  // Loading
-  // =========================================================
+  // Loading state
   if (loading) {
     return (
       <>
@@ -236,9 +280,7 @@ const AdminMatches = () => {
                 style={{ color: "#73112d" }}
                 role="status"
               >
-                <span className="visually-hidden">
-                  Loading...
-                </span>
+                <span className="visually-hidden">Loading...</span>
               </div>
 
               <p className="text-muted mt-3 mb-0">
@@ -251,9 +293,15 @@ const AdminMatches = () => {
     );
   }
 
-  // =========================================================
-  // Main UI
-  // =========================================================
+  const totalRealRecipients = matches.reduce((total, match) => {
+    const users = Array.isArray(match.users) ? match.users : [];
+
+    return (
+      total +
+      users.filter((user) => user?.accountType === "real").length
+    );
+  }, 0);
+
   return (
     <>
       <AdminNavbar />
@@ -266,13 +314,11 @@ const AdminMatches = () => {
         }}
       >
         <div className="container-fluid px-2 px-md-4">
-          {/* =====================================================
-              HEADER
-          ===================================================== */}
+          {/* Page header */}
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
             <div className="d-flex align-items-center">
               <div
-                className="d-flex align-items-center justify-content-center rounded-3 me-3"
+                className="d-flex align-items-center justify-content-center rounded-3 me-3 flex-shrink-0"
                 style={{
                   width: "48px",
                   height: "48px",
@@ -281,16 +327,15 @@ const AdminMatches = () => {
                 }}
               >
                 <i
-                  className="bi bi-heart-fill"
+                  className="bi bi-bell-fill"
                   style={{ fontSize: "20px" }}
-                ></i>
+                />
               </div>
 
               <div>
-                <h3 className="mb-1 fw-bold">Matches</h3>
-
+                <h3 className="mb-1 fw-bold">Match Pokes</h3>
                 <p className="text-muted mb-0">
-                  Manage active matches and conversation activity.
+                  Send reminders to real users whose matches are waiting.
                 </p>
               </div>
             </div>
@@ -298,60 +343,68 @@ const AdminMatches = () => {
             <button
               type="button"
               className="btn btn-light border shadow-sm px-4"
-              onClick={loadMatches}
+              onClick={() => loadMatches(false)}
+              disabled={refreshing || Boolean(pokingMatchId)}
             >
-              <i className="bi bi-arrow-clockwise me-2"></i>
-              Refresh
+              {refreshing ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-arrow-clockwise me-2" />
+                  Refresh
+                </>
+              )}
             </button>
           </div>
 
-          {/* =====================================================
-              ALERTS
-          ===================================================== */}
+          {/* Alerts */}
           {successMessage && (
             <div
-              className="alert alert-success border-0 shadow-sm d-flex align-items-center justify-content-between"
+              className="alert alert-success border-0 shadow-sm d-flex align-items-center justify-content-between gap-2"
               role="alert"
             >
               <div>
-                <i className="bi bi-check-circle-fill me-2"></i>
+                <i className="bi bi-check-circle-fill me-2" />
                 {successMessage}
               </div>
 
               <button
                 type="button"
-                className="btn-close"
+                className="btn-close flex-shrink-0"
+                aria-label="Close success message"
                 onClick={() => setSuccessMessage("")}
-              ></button>
+              />
             </div>
           )}
 
           {error && (
             <div
-              className="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between"
+              className="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between gap-2"
               role="alert"
             >
               <div>
-                <i className="bi bi-exclamation-circle-fill me-2"></i>
+                <i className="bi bi-exclamation-circle-fill me-2" />
                 {error}
               </div>
 
               <button
                 type="button"
-                className="btn-close"
+                className="btn-close flex-shrink-0"
+                aria-label="Close error message"
                 onClick={() => setError("")}
-              ></button>
+              />
             </div>
           )}
 
-          {/* =====================================================
-              STAT CARD
-          ===================================================== */}
+          {/* Statistics */}
           <div className="row g-3 mb-4">
-            <div className="col-12 col-sm-6 col-xl-3">
+            <div className="col-12 col-sm-6 col-xl-4">
               <div className="card border-0 shadow-sm h-100">
                 <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start">
+                  <div className="d-flex justify-content-between align-items-start gap-3">
                     <div>
                       <small className="text-muted fw-medium">
                         ACTIVE MATCHES
@@ -367,7 +420,7 @@ const AdminMatches = () => {
                     </div>
 
                     <div
-                      className="rounded-3 d-flex align-items-center justify-content-center"
+                      className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
                       style={{
                         width: "46px",
                         height: "46px",
@@ -375,7 +428,41 @@ const AdminMatches = () => {
                         color: "#73112d",
                       }}
                     >
-                      <i className="bi bi-heart-fill"></i>
+                      <i className="bi bi-heart-fill" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-4">
+              <div className="card border-0 shadow-sm h-100">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                      <small className="text-muted fw-medium">
+                        ELIGIBLE RECIPIENTS
+                      </small>
+
+                      <h2 className="fw-bold mb-1 mt-2">
+                        {totalRealRecipients}
+                      </h2>
+
+                      <small className="text-muted">
+                        Real-user recipients across matches
+                      </small>
+                    </div>
+
+                    <div
+                      className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{
+                        width: "46px",
+                        height: "46px",
+                        backgroundColor: "#e5f3e9",
+                        color: "#198754",
+                      }}
+                    >
+                      <i className="bi bi-person-check-fill" />
                     </div>
                   </div>
                 </div>
@@ -383,46 +470,35 @@ const AdminMatches = () => {
             </div>
           </div>
 
-          {/* =====================================================
-              SECTION HEADER
-          ===================================================== */}
+          {/* Matches section */}
           <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
             <div>
               <h5 className="fw-bold mb-1">Active Matches</h5>
-
               <p className="text-muted small mb-0">
-                View matched users, chat activity and available actions.
+                Review participants and send a reminder when appropriate.
               </p>
             </div>
 
             <span className="badge bg-dark rounded-pill px-3 py-2 align-self-start align-self-sm-center">
-              {matches.length} Match
-              {matches.length !== 1 ? "es" : ""}
+              {matches.length} Match{matches.length !== 1 ? "es" : ""}
             </span>
           </div>
 
-          {/* =====================================================
-              NO MATCHES
-          ===================================================== */}
+          {/* Empty state */}
           {matches.length === 0 ? (
             <div className="card border-0 shadow-sm">
               <div className="card-body text-center py-5">
                 <div
                   className="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3"
-                  style={{
-                    width: "70px",
-                    height: "70px",
-                  }}
+                  style={{ width: "70px", height: "70px" }}
                 >
                   <i
                     className="bi bi-heart text-muted"
                     style={{ fontSize: "28px" }}
-                  ></i>
+                  />
                 </div>
 
-                <h5 className="fw-semibold">
-                  No active matches
-                </h5>
+                <h5 className="fw-semibold">No active matches</h5>
 
                 <p
                   className="text-muted mb-0 mx-auto"
@@ -433,25 +509,42 @@ const AdminMatches = () => {
               </div>
             </div>
           ) : (
-            /* ===================================================
-               MATCH LIST
-            =================================================== */
             <div className="d-flex flex-column gap-4">
               {matches.map((match) => {
-                const users = match.users || [];
-                const userOne = users[0];
-                const userTwo = users[1];
+                const users = Array.isArray(match.users)
+                  ? match.users
+                  : [];
+
+                const realUsers = users.filter(
+                  (user) => user?.accountType === "real"
+                );
+
+                const hasEligibleRecipient = realUsers.length > 0;
+                const chatId =
+                  typeof match.chatId === "object"
+                    ? match.chatId?._id
+                    : match.chatId;
+
+                const lastMessage =
+                  match.chatId &&
+                  typeof match.chatId === "object"
+                    ? match.chatId.lastMessage
+                    : match.lastMessage;
+
+                const lastActivity =
+                  match.chatId &&
+                  typeof match.chatId === "object"
+                    ? match.chatId.createdAt
+                    : match.lastMessageAt;
 
                 return (
                   <div className="card border-0 shadow-sm" key={match._id}>
-                    {/* =================================================
-                        MATCH HEADER
-                    ================================================= */}
+                    {/* Match header */}
                     <div className="card-header bg-white border-bottom px-3 px-md-4 py-3">
                       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                         <div className="d-flex align-items-center flex-wrap gap-2">
                           <span className="badge bg-success-subtle text-success rounded-pill px-3 py-2">
-                            <i className="bi bi-circle-fill me-1"></i>
+                            <i className="bi bi-circle-fill me-1" />
                             Active Match
                           </span>
 
@@ -462,36 +555,29 @@ const AdminMatches = () => {
                           )}
                         </div>
 
-                        <div className="text-muted small text-truncate">
-                          <span className="fw-medium">
-                            Match ID:
-                          </span>{" "}
+                        <div
+                          className="text-muted small text-break"
+                          style={{ overflowWrap: "anywhere" }}
+                        >
+                          <span className="fw-medium">Match ID:</span>{" "}
                           {match._id}
                         </div>
                       </div>
                     </div>
 
-                    {/* =================================================
-                        MATCH BODY
-                    ================================================= */}
+                    {/* Match body */}
                     <div className="card-body px-3 px-md-4 py-4">
-                      {/* =================================================
-                          USERS ROW
-                      ================================================= */}
+                      {/* Participants */}
                       <div className="row align-items-center g-3">
-                        {/* USER ONE */}
                         <div className="col-12 col-md-5">
                           <div
                             className="border rounded-3 p-3 h-100"
-                            style={{
-                              backgroundColor: "#fafafa",
-                            }}
+                            style={{ backgroundColor: "#fafafa" }}
                           >
-                            <UserCard user={userOne} />
+                            <UserCard user={users[0]} />
                           </div>
                         </div>
 
-                        {/* MATCH ICON */}
                         <div className="col-12 col-md-2">
                           <div className="d-flex justify-content-center align-items-center">
                             <div className="text-center">
@@ -507,7 +593,7 @@ const AdminMatches = () => {
                                 <i
                                   className="bi bi-heart-fill"
                                   style={{ fontSize: "20px" }}
-                                ></i>
+                                />
                               </div>
 
                               <small className="text-muted fw-medium d-block mt-2">
@@ -517,29 +603,70 @@ const AdminMatches = () => {
                           </div>
                         </div>
 
-                        {/* USER TWO */}
                         <div className="col-12 col-md-5">
                           <div
                             className="border rounded-3 p-3 h-100"
-                            style={{
-                              backgroundColor: "#fafafa",
-                            }}
+                            style={{ backgroundColor: "#fafafa" }}
                           >
-                            <UserCard user={userTwo} />
+                            <UserCard user={users[1]} />
                           </div>
                         </div>
                       </div>
 
-                      {/* =================================================
-                          INFORMATION ROW
-                      ================================================= */}
-                      <div className="row g-3 mt-4">
-                        {/* CHAT ID */}
+                      {/* Recipient information */}
+                      <div className="border rounded-3 p-3 mt-4">
+                        <div className="d-flex align-items-start gap-3">
+                          <div
+                            className="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              backgroundColor: "#f1e7ea",
+                              color: "#73112d",
+                            }}
+                          >
+                            <i className="bi bi-bell-fill" />
+                          </div>
+
+                          <div className="flex-grow-1">
+                            <div className="fw-semibold text-dark mb-1">
+                              Reminder recipient
+                            </div>
+
+                            {hasEligibleRecipient ? (
+                              <>
+                                <div className="small text-muted">
+                                  {realUsers
+                                    .map(
+                                      (user) =>
+                                        user.fullName ||
+                                        user.username ||
+                                        "Real user"
+                                    )
+                                    .join(", ")}
+                                </div>
+
+                                <small className="text-muted d-block mt-1">
+                                  This notification is sent to the real
+                                  user, not from the fake account.
+                                </small>
+                              </>
+                            ) : (
+                              <div className="small text-danger">
+                                No eligible real user is present in this match.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Match details */}
+                      <div className="row g-3 mt-2">
                         <div className="col-12 col-md-4">
                           <div className="border rounded-3 p-3 h-100">
                             <div className="d-flex align-items-center mb-2">
                               <div
-                                className="rounded-2 d-flex align-items-center justify-content-center me-2"
+                                className="rounded-2 d-flex align-items-center justify-content-center me-2 flex-shrink-0"
                                 style={{
                                   width: "32px",
                                   height: "32px",
@@ -547,7 +674,7 @@ const AdminMatches = () => {
                                   color: "#73112d",
                                 }}
                               >
-                                <i className="bi bi-chat-square-text"></i>
+                                <i className="bi bi-chat-square-text" />
                               </div>
 
                               <small className="text-muted fw-semibold">
@@ -556,26 +683,20 @@ const AdminMatches = () => {
                             </div>
 
                             <div
-                              className="small text-dark text-truncate"
-                              title={
-                                match.chatId?._id ||
-                                match.chatId ||
-                                ""
-                              }
+                              className="small text-dark text-break"
+                              style={{ overflowWrap: "anywhere" }}
+                              title={chatId || ""}
                             >
-                              {match.chatId?._id ||
-                                match.chatId ||
-                                "No chat"}
+                              {chatId || "No chat"}
                             </div>
                           </div>
                         </div>
 
-                        {/* LAST MESSAGE */}
                         <div className="col-12 col-md-4">
                           <div className="border rounded-3 p-3 h-100">
                             <div className="d-flex align-items-center mb-2">
                               <div
-                                className="rounded-2 d-flex align-items-center justify-content-center me-2"
+                                className="rounded-2 d-flex align-items-center justify-content-center me-2 flex-shrink-0"
                                 style={{
                                   width: "32px",
                                   height: "32px",
@@ -583,7 +704,7 @@ const AdminMatches = () => {
                                   color: "#73112d",
                                 }}
                               >
-                                <i className="bi bi-chat-left-text"></i>
+                                <i className="bi bi-chat-left-text" />
                               </div>
 
                               <small className="text-muted fw-semibold">
@@ -592,32 +713,26 @@ const AdminMatches = () => {
                             </div>
 
                             <div
-                              className="small text-dark text-truncate"
+                              className="small text-dark text-break"
+                              style={{ overflowWrap: "anywhere" }}
                               title={
-                                typeof match.lastMessage ===
-                                "object"
-                                  ? match.lastMessage?.message ||
-                                    "No messages yet"
-                                  : match.lastMessage ||
-                                    "No messages yet"
+                                typeof lastMessage === "object"
+                                  ? lastMessage?.message || "No messages yet"
+                                  : lastMessage || "No messages yet"
                               }
                             >
-                              {typeof match.lastMessage ===
-                              "object"
-                                ? match.lastMessage?.message ||
-                                  "No messages yet"
-                                : match.lastMessage ||
-                                  "No messages yet"}
+                              {typeof lastMessage === "object"
+                                ? lastMessage?.message || "No messages yet"
+                                : lastMessage || "No messages yet"}
                             </div>
                           </div>
                         </div>
 
-                        {/* LAST ACTIVITY */}
                         <div className="col-12 col-md-4">
                           <div className="border rounded-3 p-3 h-100">
                             <div className="d-flex align-items-center mb-2">
                               <div
-                                className="rounded-2 d-flex align-items-center justify-content-center me-2"
+                                className="rounded-2 d-flex align-items-center justify-content-center me-2 flex-shrink-0"
                                 style={{
                                   width: "32px",
                                   height: "32px",
@@ -625,7 +740,7 @@ const AdminMatches = () => {
                                   color: "#73112d",
                                 }}
                               >
-                                <i className="bi bi-clock-history"></i>
+                                <i className="bi bi-clock-history" />
                               </div>
 
                               <small className="text-muted fw-semibold">
@@ -633,35 +748,28 @@ const AdminMatches = () => {
                               </small>
                             </div>
 
-                            <div className="small text-dark text-truncate">
-                              {formatDate(match.lastMessageAt)}
+                            <div className="small text-dark">
+                              {formatDate(lastActivity)}
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* =================================================
-                          ACTION ROW
-                      ================================================= */}
+                      {/* Actions */}
                       <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 border-top mt-4 pt-3">
                         <div className="small text-muted">
-                          <i className="bi bi-info-circle me-1"></i>
-                          Manage this match conversation.
+                          <i className="bi bi-info-circle me-1" />
+                          Send a reminder or manage the conversation.
                         </div>
 
                         <div className="d-flex flex-column flex-sm-row gap-2">
                           <button
                             type="button"
                             className="btn btn-light border px-4"
-                            disabled={!match.chatId}
-                            onClick={() =>
-                              handleOpenChat(
-                                match.chatId?._id ||
-                                  match.chatId,
-                              )
-                            }
+                            disabled={!chatId || Boolean(pokingMatchId)}
+                            onClick={() => handleOpenChat(chatId)}
                           >
-                            <i className="bi bi-chat-dots me-2"></i>
+                            <i className="bi bi-chat-dots me-2" />
                             Open Chat
                           </button>
 
@@ -670,12 +778,17 @@ const AdminMatches = () => {
                             className="btn px-4 text-white"
                             style={{
                               backgroundColor: "#73112d",
+                              opacity: hasEligibleRecipient ? 1 : 0.65,
                             }}
                             disabled={
-                              pokingMatchId === match._id
+                              !hasEligibleRecipient ||
+                              Boolean(pokingMatchId)
                             }
-                            onClick={() =>
-                              handlePoke(match._id)
+                            onClick={() => handlePoke(match)}
+                            title={
+                              hasEligibleRecipient
+                                ? "Send a reminder to the real user"
+                                : "No eligible real user in this match"
                             }
                           >
                             {pokingMatchId === match._id ? (
@@ -683,13 +796,13 @@ const AdminMatches = () => {
                                 <span
                                   className="spinner-border spinner-border-sm me-2"
                                   role="status"
-                                ></span>
+                                />
                                 Sending...
                               </>
                             ) : (
                               <>
-                                <i className="bi bi-bell me-2"></i>
-                                Send Reminder
+                                <i className="bi bi-bell me-2" />
+                                Send Poke
                               </>
                             )}
                           </button>

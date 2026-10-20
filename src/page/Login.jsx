@@ -229,6 +229,20 @@ const Login = () => {
             </div>
           </div>
 
+          {/* Forgot Password Link */}
+          <div className="text-end mb-3">
+            <Link
+              to="/forgot-password"
+              className="text-decoration-none fw-semibold"
+              style={{
+                color: "#78142c",
+                fontSize: "0.8rem",
+              }}
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
           {/* Sign In Button */}
           <button
             type="submit"
