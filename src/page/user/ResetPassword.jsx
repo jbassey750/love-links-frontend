@@ -53,7 +53,7 @@ const ResetPassword = () => {
 
       // Give the user a moment to read the success message.
       setTimeout(() => {
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
       }, 1800);
     } catch (err) {
       setError(
