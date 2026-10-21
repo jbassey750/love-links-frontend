@@ -225,7 +225,6 @@ const AdminCreateData = () => {
   return (
     <div className="bg-light min-vh-100">
       <div className="">
-
         {/* ==========================================
             HEADER
         ========================================== */}
@@ -238,14 +237,12 @@ const AdminCreateData = () => {
           </div>
         )}
 
-
         {/* ==========================================
             TABS
         ========================================== */}
         <div className="card border-0 shadow-sm rounded-4 mb-4">
           <div className="card-body p-2">
             <div className="row g-2">
-
               {/* PREMIUM TAB */}
               <div className="col-12 col-md-3">
                 <button
@@ -259,9 +256,7 @@ const AdminCreateData = () => {
                 >
                   <div className="fs-4 mb-1">👑</div>
 
-                  <div className="fw-bold">
-                    Premium User
-                  </div>
+                  <div className="fw-bold">Premium User</div>
 
                   <small
                     className={
@@ -288,9 +283,7 @@ const AdminCreateData = () => {
                 >
                   <div className="fs-4 mb-1">🛡️</div>
 
-                  <div className="fw-bold">
-                    Moderator
-                  </div>
+                  <div className="fw-bold">Moderator</div>
 
                   <small
                     className={
@@ -319,9 +312,7 @@ const AdminCreateData = () => {
                   <div className="fw-bold">Fake Account</div>
                   <small
                     className={
-                      activeTab === "fake"
-                        ? "text-white-50"
-                        : "text-secondary"
+                      activeTab === "fake" ? "text-white-50" : "text-secondary"
                     }
                   >
                     Create managed account
@@ -342,9 +333,7 @@ const AdminCreateData = () => {
                 >
                   <div className="fs-4 mb-1">🎁</div>
 
-                  <div className="fw-bold">
-                    Package
-                  </div>
+                  <div className="fw-bold">Package</div>
 
                   <small
                     className={
@@ -357,7 +346,6 @@ const AdminCreateData = () => {
                   </small>
                 </button>
               </div>
-
             </div>
           </div>
         </div>
@@ -369,12 +357,10 @@ const AdminCreateData = () => {
           activeTab === "moderator" ||
           activeTab === "fake") && (
           <div className="row g-4">
-
             {/* FORM */}
             <div className="col-xl-8">
               <div className="card border-0 shadow-sm rounded-4">
                 <div className="card-body p-4 p-lg-5">
-
                   {/* FORM HEADER */}
                   <div className="d-flex align-items-center gap-3 mb-4">
                     <div
@@ -389,9 +375,7 @@ const AdminCreateData = () => {
                         fontSize: "25px",
                       }}
                     >
-                      {activeTab === "premium"
-                        ? "👑"
-                        : "🛡️"}
+                      {activeTab === "premium" ? "👑" : "🛡️"}
                     </div>
 
                     <div>
@@ -410,7 +394,6 @@ const AdminCreateData = () => {
                   </div>
 
                   <form onSubmit={handleUserSubmit}>
-
                     {/* ACCOUNT */}
                     <div className="mb-4">
                       <h6 className="fw-bold text-dark border-bottom pb-2 mb-3">
@@ -418,7 +401,6 @@ const AdminCreateData = () => {
                       </h6>
 
                       <div className="row g-3">
-
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Username
@@ -510,22 +492,14 @@ const AdminCreateData = () => {
                             onChange={handleUserChange}
                             required
                           >
-                            <option value="">
-                              Select
-                            </option>
-                            <option value="male">
-                              Male
-                            </option>
-                            <option value="female">
-                              Female
-                            </option>
+                            <option value="">Select</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
                           </select>
                         </div>
 
                         <div className="col-md-3">
-                          <label className="form-label fw-semibold">
-                            Age
-                          </label>
+                          <label className="form-label fw-semibold">Age</label>
 
                           <input
                             type="number"
@@ -538,7 +512,6 @@ const AdminCreateData = () => {
                             required
                           />
                         </div>
-
                       </div>
                     </div>
 
@@ -549,7 +522,6 @@ const AdminCreateData = () => {
                       </h6>
 
                       <div className="row g-3">
-
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Badge
@@ -561,20 +533,15 @@ const AdminCreateData = () => {
                             value={userForm.badge}
                             onChange={handleUserChange}
                           >
-                            <option value="Romance">
-                              Romance
-                            </option>
+                            <option value="Romance">Romance</option>
 
-                            <option value="Friends">
-                              Friends
-                            </option>
+                            <option value="Friends">Friends</option>
 
                             <option value="Love & Friends">
                               Love & Friends
                             </option>
                           </select>
                         </div>
-
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Relationship Status
@@ -583,37 +550,24 @@ const AdminCreateData = () => {
                           <select
                             name="relationshipStatus"
                             className="form-select form-select-lg rounded-3"
-                            value={
-                              userForm.relationshipStatus
-                            }
+                            value={userForm.relationshipStatus}
                             onChange={handleUserChange}
                           >
-                            <option value="">
-                              Select status
-                            </option>
+                            <option value="">Select status</option>
 
-                            <option value="Single">
-                              Single
-                            </option>
+                            <option value="Single">Single</option>
 
                             <option value="In a relationship">
                               In a relationship
                             </option>
 
-                            <option value="Married">
-                              Married
-                            </option>
+                            <option value="Married">Married</option>
 
-                            <option value="Divorced">
-                              Divorced
-                            </option>
+                            <option value="Divorced">Divorced</option>
 
-                            <option value="Widowed">
-                              Widowed
-                            </option>
+                            <option value="Widowed">Widowed</option>
                           </select>
                         </div>
-
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             State
@@ -628,7 +582,6 @@ const AdminCreateData = () => {
                             onChange={handleUserChange}
                           />
                         </div>
-
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Region
@@ -643,11 +596,8 @@ const AdminCreateData = () => {
                             onChange={handleUserChange}
                           />
                         </div>
-
                         <div className="col-12">
-                          <label className="form-label fw-semibold">
-                            Bio
-                          </label>
+                          <label className="form-label fw-semibold">Bio</label>
 
                           <textarea
                             name="bio"
@@ -665,7 +615,6 @@ const AdminCreateData = () => {
                             </small>
                           </div>
                         </div>
-
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Interests
@@ -684,22 +633,36 @@ const AdminCreateData = () => {
                             Separate interests with commas.
                           </small>
                         </div>
-
+                        ```jsx
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Looking For
                           </label>
 
-                          <input
-                            type="text"
+                          <select
                             name="lookingFor"
-                            className="form-control form-control-lg rounded-3"
-                            placeholder="Friendship, Love..."
+                            className="form-select form-select-lg rounded-3"
                             value={userForm.lookingFor}
                             onChange={handleUserChange}
-                          />
+                          >
+                            <option value="">
+                              Select who you're looking for
+                            </option>
+                            <option value="female">female</option>
+                            <option value="male">male</option>
+                            <option value="non-binary">non-binary</option>
+                            <option value="agender">agender</option>
+                            <option value="bigender">bigender</option>
+                            <option value="genderfluid">genderfluid</option>
+                            <option value="genderqueer">genderqueer</option>
+                            <option value="transgender">transgender</option>
+                            <option value="prefer not to say">
+                              prefer not to say
+                            </option>
+                            <option value="other">other</option>
+                          </select>
                         </div>
-
+                        ```
                       </div>
                     </div>
 
@@ -710,7 +673,6 @@ const AdminCreateData = () => {
                       </h6>
 
                       <div className="row align-items-center g-3">
-
                         <div className="col-md-4 text-center">
                           <div
                             className="mx-auto rounded-circle overflow-hidden bg-light border"
@@ -759,13 +721,11 @@ const AdminCreateData = () => {
                             Recommended: JPG or PNG image.
                           </small>
                         </div>
-
                       </div>
                     </div>
 
                     {/* ACTIONS */}
                     <div className="d-flex flex-column flex-sm-row justify-content-end gap-2 pt-3 border-top">
-
                       <button
                         type="button"
                         onClick={resetUserForm}
@@ -790,11 +750,8 @@ const AdminCreateData = () => {
                             : activeTab === "fake"
                               ? "🎭 Create Fake Account"
                               : "🛡️ Create Moderator"}
-                        
                       </button>
-
                     </div>
-
                   </form>
                 </div>
               </div>
@@ -802,7 +759,6 @@ const AdminCreateData = () => {
 
             {/* SIDE INFO */}
             <div className="col-xl-4">
-
               <div
                 className={`card border-0 shadow-sm rounded-4 overflow-hidden ${
                   activeTab === "premium"
@@ -811,7 +767,6 @@ const AdminCreateData = () => {
                 }`}
               >
                 <div className="card-body p-4">
-
                   <div className="fs-1 mb-3">
                     {activeTab === "premium"
                       ? "👑"
@@ -852,10 +807,8 @@ const AdminCreateData = () => {
                     <span>✓</span>
                     <span>Secure account credentials</span>
                   </div>
-
                 </div>
               </div>
-
             </div>
           </div>
         )}
@@ -865,16 +818,12 @@ const AdminCreateData = () => {
         ===================================================== */}
         {activeTab === "package" && (
           <div className="row g-4">
-
             {/* PACKAGE FORM */}
             <div className="col-xl-8">
-
               <div className="card border-0 shadow-sm rounded-4">
                 <div className="card-body p-4 p-lg-5">
-
                   {/* HEADER */}
                   <div className="d-flex align-items-center gap-3 mb-4">
-
                     <div
                       className="rounded-3 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center"
                       style={{
@@ -887,28 +836,22 @@ const AdminCreateData = () => {
                     </div>
 
                     <div>
-                      <h4 className="fw-bold mb-1">
-                        Create Package
-                      </h4>
+                      <h4 className="fw-bold mb-1">Create Package</h4>
 
                       <p className="text-secondary mb-0">
                         Create a point package or free-chat subscription.
                       </p>
                     </div>
-
                   </div>
 
                   <form onSubmit={handlePackageSubmit}>
-
                     {/* BASIC */}
                     <div className="mb-4">
-
                       <h6 className="fw-bold border-bottom pb-2 mb-3">
                         Package Information
                       </h6>
 
                       <div className="row g-3">
-
                         <div className="col-md-8">
                           <label className="form-label fw-semibold">
                             Package Name
@@ -936,37 +879,28 @@ const AdminCreateData = () => {
                             value={packageForm.type}
                             onChange={handlePackageChange}
                           >
-                            <option value="points">
-                              Points
-                            </option>
+                            <option value="points">Points</option>
 
-                            <option value="subscription">
-                              Subscription
-                            </option>
+                            <option value="subscription">Subscription</option>
                           </select>
                         </div>
-
                       </div>
                     </div>
 
                     {/* PRICING */}
                     <div className="mb-4">
-
                       <h6 className="fw-bold border-bottom pb-2 mb-3">
                         Pricing
                       </h6>
 
                       <div className="row g-3">
-
                         <div className="col-md-8">
                           <label className="form-label fw-semibold">
                             Price
                           </label>
 
                           <div className="input-group input-group-lg">
-                            <span className="input-group-text bg-white">
-                              $
-                            </span>
+                            <span className="input-group-text bg-white">$</span>
 
                             <input
                               type="number"
@@ -993,25 +927,20 @@ const AdminCreateData = () => {
                             value={packageForm.currency}
                             onChange={handlePackageChange}
                           >
-                            <option value="USD">
-                              USD ($)
-                            </option>
+                            <option value="USD">USD ($)</option>
                           </select>
                         </div>
-
                       </div>
                     </div>
 
                     {/* BENEFITS */}
                     <div className="mb-4">
-
                       <h6 className="fw-bold border-bottom pb-2 mb-3">
                         Package Benefits
                       </h6>
 
                       {packageForm.type === "points" ? (
                         <div>
-
                           <label className="form-label fw-semibold">
                             Points to Give
                           </label>
@@ -1035,17 +964,14 @@ const AdminCreateData = () => {
 
                           <div className="alert alert-info border-0 rounded-3 mt-3 mb-0">
                             <small>
-                              These points will be added to the user's
-                              account after a successful payment.
+                              These points will be added to the user's account
+                              after a successful payment.
                             </small>
                           </div>
-
                         </div>
                       ) : (
                         <div className="row g-3">
-
                           <div className="col-md-6">
-
                             <label className="form-label fw-semibold">
                               Duration
                             </label>
@@ -1061,11 +987,9 @@ const AdminCreateData = () => {
                               onChange={handlePackageChange}
                               required
                             />
-
                           </div>
 
                           <div className="col-md-6">
-
                             <label className="form-label fw-semibold">
                               Duration Unit
                             </label>
@@ -1076,32 +1000,23 @@ const AdminCreateData = () => {
                               value={packageForm.durationUnit}
                               onChange={handlePackageChange}
                             >
-                              <option value="days">
-                                Days
-                              </option>
+                              <option value="days">Days</option>
 
-                              <option value="months">
-                                Months
-                              </option>
+                              <option value="months">Months</option>
                             </select>
-
                           </div>
 
                           <div className="col-12">
                             <div className="alert alert-danger bg-danger bg-opacity-10 border-0 rounded-3">
-                              <strong>Example:</strong>{" "}
-                              2.5 weeks = 17.5 days
+                              <strong>Example:</strong> 2.5 weeks = 17.5 days
                             </div>
                           </div>
-
                         </div>
                       )}
-
                     </div>
 
                     {/* DESCRIPTION */}
                     <div className="mb-4">
-
                       <h6 className="fw-bold border-bottom pb-2 mb-3">
                         Description
                       </h6>
@@ -1121,19 +1036,14 @@ const AdminCreateData = () => {
                           {packageForm.description.length}/500
                         </small>
                       </div>
-
                     </div>
 
                     {/* STATUS */}
                     <div className="card bg-light border-0 rounded-3 mb-4">
                       <div className="card-body">
-
                         <div className="d-flex justify-content-between align-items-center">
-
                           <div>
-                            <h6 className="fw-bold mb-1">
-                              Package Status
-                            </h6>
+                            <h6 className="fw-bold mb-1">Package Status</h6>
 
                             <small className="text-secondary">
                               Make this package available for users.
@@ -1149,27 +1059,21 @@ const AdminCreateData = () => {
                               onChange={(e) =>
                                 setPackageForm((prev) => ({
                                   ...prev,
-                                  isActive:
-                                    e.target.checked,
+                                  isActive: e.target.checked,
                                 }))
                               }
                             />
 
                             <label className="form-check-label fw-semibold">
-                              {packageForm.isActive
-                                ? "Active"
-                                : "Inactive"}
+                              {packageForm.isActive ? "Active" : "Inactive"}
                             </label>
                           </div>
-
                         </div>
-
                       </div>
                     </div>
 
                     {/* BUTTONS */}
                     <div className="d-flex flex-column flex-sm-row justify-content-end gap-2 border-top pt-4">
-
                       <button
                         type="button"
                         className="btn btn-light border rounded-3 px-4"
@@ -1185,31 +1089,23 @@ const AdminCreateData = () => {
                       >
                         🎁 Create Package
                       </button>
-
                     </div>
-
                   </form>
-
                 </div>
               </div>
-
             </div>
 
             {/* PACKAGE PREVIEW */}
             <div className="col-xl-4">
-
-              <div className="card border-0 shadow-sm rounded-4 overflow-hidden sticky-xl-top"
+              <div
+                className="card border-0 shadow-sm rounded-4 overflow-hidden sticky-xl-top"
                 style={{ top: "20px" }}
               >
-
                 <div className="bg-danger text-white p-3">
-                  <small className="fw-bold">
-                    PACKAGE PREVIEW
-                  </small>
+                  <small className="fw-bold">PACKAGE PREVIEW</small>
                 </div>
 
                 <div className="card-body p-4 text-center">
-
                   <div
                     className="rounded-circle bg-danger bg-opacity-10 d-flex align-items-center justify-content-center mx-auto mb-3"
                     style={{
@@ -1222,8 +1118,7 @@ const AdminCreateData = () => {
                   </div>
 
                   <h4 className="fw-bold">
-                    {packageForm.name ||
-                      "Your Package Name"}
+                    {packageForm.name || "Your Package Name"}
                   </h4>
 
                   <span className="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-2 mb-3">
@@ -1235,20 +1130,13 @@ const AdminCreateData = () => {
                   <div className="display-5 fw-bold text-dark mb-4">
                     $
                     {packageForm.price
-                      ? Number(
-                          packageForm.price
-                        ).toFixed(2)
+                      ? Number(packageForm.price).toFixed(2)
                       : "0.00"}
-
-                    <small className="fs-6 text-secondary">
-                      {" "}
-                      USD
-                    </small>
+                    <small className="fs-6 text-secondary"> USD</small>
                   </div>
 
                   <div className="card bg-light border-0 rounded-3">
                     <div className="card-body">
-
                       {packageForm.type === "points" ? (
                         <>
                           <small className="text-secondary fw-semibold">
@@ -1256,14 +1144,11 @@ const AdminCreateData = () => {
                           </small>
 
                           <h3 className="fw-bold text-danger my-2">
-                            {packageForm.points ||
-                              "0"}{" "}
-                            Points
+                            {packageForm.points || "0"} Points
                           </h3>
 
                           <p className="text-secondary small mb-0">
-                            Use points to start conversations
-                            with other users.
+                            Use points to start conversations with other users.
                           </p>
                         </>
                       ) : (
@@ -1273,23 +1158,20 @@ const AdminCreateData = () => {
                           </small>
 
                           <h3 className="fw-bold text-danger my-2">
-                            {packageForm.duration ||
-                              "0"}{" "}
+                            {packageForm.duration || "0"}{" "}
                             {packageForm.durationUnit}
                           </h3>
 
                           <p className="text-secondary small mb-0">
-                            Enjoy free chat access during this
-                            subscription period.
+                            Enjoy free chat access during this subscription
+                            period.
                           </p>
                         </>
                       )}
-
                     </div>
                   </div>
 
                   <div className="mt-4">
-
                     <span
                       className={`badge rounded-pill px-3 py-2 ${
                         packageForm.isActive
@@ -1297,16 +1179,12 @@ const AdminCreateData = () => {
                           : "bg-secondary bg-opacity-10 text-secondary"
                       }`}
                     >
-                      {packageForm.isActive
-                        ? "● Active"
-                        : "● Inactive"}
+                      {packageForm.isActive ? "● Active" : "● Inactive"}
                     </span>
-
                   </div>
 
                   {packageForm.description && (
                     <div className="text-start mt-4 pt-3 border-top">
-
                       <small className="text-secondary fw-semibold">
                         DESCRIPTION
                       </small>
@@ -1314,19 +1192,13 @@ const AdminCreateData = () => {
                       <p className="text-secondary small mt-2 mb-0">
                         {packageForm.description}
                       </p>
-
                     </div>
                   )}
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
         )}
-
       </div>
     </div>
   );
