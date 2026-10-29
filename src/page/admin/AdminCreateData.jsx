@@ -633,7 +633,7 @@ const AdminCreateData = () => {
                             Separate interests with commas.
                           </small>
                         </div>
-                        ```jsx
+                  
                         <div className="col-md-6">
                           <label className="form-label fw-semibold">
                             Looking For
@@ -662,7 +662,7 @@ const AdminCreateData = () => {
                             <option value="other">other</option>
                           </select>
                         </div>
-                        ```
+                        
                       </div>
                     </div>
 

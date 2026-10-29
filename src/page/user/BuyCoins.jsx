@@ -7,6 +7,12 @@ import api from "../../api/axios";
 
 const BuyCoins = () => {
   const [userBalance, setUserBalance] = useState(0);
+  const [subscription, setSubscription] = useState(null);
+  const [showSubscription, setShowSubscription] = useState(
+  () =>
+    localStorage.getItem("enamoraLastSuccessfulPurchaseType") ===
+    "subscription"
+);
   const [loadingBalance, setLoadingBalance] = useState(true);
 
   // Packages from backend
@@ -79,6 +85,8 @@ const BuyCoins = () => {
   }, []);
 
   // FETCH USER'S CURRENT POINTS BALANCE
+  // FETCH USER'S CURRENT POINTS BALANCE
+
   useEffect(() => {
     let isMounted = true;
 
@@ -88,15 +96,31 @@ const BuyCoins = () => {
 
         const response = await api.get("/profile/me");
 
-        const profileUser = response.data?.user || response.data;
+        const profileUser =
+          response.data?.user ||
+          response.data?.data?.user ||
+          response.data?.data ||
+          response.data;
 
         if (isMounted && profileUser) {
-          setUserBalance(Number(profileUser.points) || 0);
+          const balance = Number(profileUser.points);
+
+          if (
+            profileUser.points !== undefined &&
+            profileUser.points !== null &&
+            Number.isFinite(balance)
+          ) {
+            setUserBalance(balance);
+          } else {
+            console.error("Invalid points balance:", profileUser.points);
+          }
+
+          setSubscription(profileUser.subscription || null);
         }
       } catch (error) {
         console.error(
-          "Failed to fetch points balance:",
-          error.response?.status || error.message,
+          "Failed to fetch profile:",
+          error.response?.data || error.message,
         );
       } finally {
         if (isMounted) {
@@ -278,48 +302,64 @@ const BuyCoins = () => {
               </div>
             </div>
 
-            {/* Dynamic Points Balance */}
+            {/* Toggle Points Balance / Subscription */}
             <div
               className="d-flex align-items-center gap-2 rounded-pill flex-shrink-0"
               style={{
                 backgroundColor: "#FFF8F9",
                 border: "1px solid #F5D0D8",
                 padding: "9px 12px",
+                cursor: "pointer",
                 boxShadow: "0 2px 6px rgba(115, 17, 45, 0.05)",
               }}
+              title="Click to switch between points and subscription"
             >
               <i
-                className="bi bi-coin"
-                style={{ color: "#D97706", fontSize: "1.1rem" }}
-              ></i>
+                className={`bi ${
+                  showSubscription ? "bi-patch-check-fill" : "bi-coin"
+                }`}
+                style={{
+                  color: showSubscription ? "#15803D" : "#D97706",
+                  fontSize: "1.1rem",
+                }}
+              />
 
               <div className="d-flex flex-column" style={{ lineHeight: 1.2 }}>
                 <span
                   className="text-secondary d-none d-sm-block"
                   style={{ fontSize: "0.68rem" }}
                 >
-                  Your balance
+                  {showSubscription ? "Subscription" : "Your balance"}
                 </span>
 
                 <span
                   className="fw-bold text-nowrap"
                   style={{
-                    color: "#73112D",
+                    color: showSubscription ? "#166534" : "#73112D",
                     fontSize: "clamp(0.7rem, 2.5vw, 0.9rem)",
                   }}
                 >
-                  {loadingBalance ? (
-                    <span
-                      className="spinner-border spinner-border-sm"
-                      role="status"
-                    />
-                  ) : (
-                    userBalance
-                  )}{" "}
-                  <span className="d-none d-sm-inline">Points</span>
-                  <span className="d-inline d-sm-none"> pts</span>
+                  {loadingBalance
+                    ? "Checking..."
+                    : showSubscription
+                      ? subscription?.status === "active"
+                        ? "Subscribed"
+                        : "Not Subscribed"
+                      : `${userBalance} Points`}
                 </span>
+
+                {!loadingBalance &&
+                  showSubscription &&
+                  subscription?.status === "active" && (
+                    <span
+                      className="text-secondary text-capitalize"
+                      style={{ fontSize: "0.68rem" }}
+                    >
+                      {subscription.plan || "Premium"}
+                    </span>
+                  )}
               </div>
+
             </div>
           </div>
         </div>

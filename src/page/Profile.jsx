@@ -41,7 +41,6 @@ const formatValue = (value, fallback = "Not provided") => {
 };
 
 const ProfileInfo = ({ icon, label, value }) => {
- 
   return (
     <div className="col-12 col-md-6">
       <div
@@ -94,12 +93,20 @@ const Profile = () => {
   const [error, setError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
 
+  const [lastPurchaseType] = useState(() =>
+    localStorage.getItem("enamoraLastSuccessfulPurchaseType"),
+  );
+
   const handleOpenModal = () => {
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleAddPoints = () => {
+    window.location.href = "/buy-coins";
   };
 
   const fetchProfile = async () => {
@@ -362,8 +369,20 @@ const Profile = () => {
                 style={{
                   objectFit: "cover",
                 }}
-                onError={(e) => {
-                  e.currentTarget.src = getProfilePhotoUrl("", user.gender);
+                onError={(event) => {
+                  const image = event.currentTarget;
+                  const fallbackUrl = new URL(
+                    getProfilePhotoUrl("", user.gender),
+                    window.location.origin,
+                  ).href;
+
+                  // Stop repeated error events.
+                  image.onerror = null;
+
+                  // Use the fallback only if the original image failed.
+                  if (image.src !== fallbackUrl) {
+                    image.src = fallbackUrl;
+                  }
                 }}
               />
             </div>
@@ -434,28 +453,64 @@ const Profile = () => {
             STATS
         ====================================== */}
         <div className="row g-3 mt-3 mb-4">
-          <div className="col-4">
-            <div
-              className="bg-white rounded-4 shadow-sm text-center p-3 h-100"
-              style={{ border: "1px solid #eee7df" }}
-            >
-              <div
-                className="fw-bold fs-4"
-                style={{
-                  fontFamily: "Georgia, serif",
-                  color: "#801931",
-                }}
-              >
-                {user.points ?? 0}
-              </div>
+          <div
+            className="col-4"
+            role="button"
+            tabIndex={0}
+            onClick={() => (window.location.href = "/buy-coins")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                window.location.href = "/buy-coins";
+              }
+            }}
+            style={{ cursor: "pointer" }}
+          >
 
-              <div
-                className="text-muted text-uppercase fw-semibold"
-                style={{ fontSize: "0.62rem" }}
-              >
-                Points
-              </div>
-            </div>
+          
+<div
+  className="bg-white rounded-4 shadow-sm text-center p-2 p-md-3 h-100 d-flex align-items-center justify-content-center flex-column"
+  style={{
+    border: "1px solid #eee7df",
+    minWidth: 0,
+    overflow: "hidden",
+  }}
+>
+  <div
+    className="fw-bold text-truncate"
+    style={{
+      fontFamily: "Georgia, serif",
+      color: "#801931",
+      fontSize: "clamp(0.85rem, 2.5vw, 1.5rem)",
+      lineHeight: 1.3,
+    }}
+    title={
+      lastPurchaseType === "subscription"
+        ? "Subscribed"
+        : String(user.points ?? 0)
+    }
+  >
+    {lastPurchaseType === "subscription"
+      ? "Subscribed"
+      : user.points ?? 0}
+  </div>
+
+  <div
+    className="text-muted text-uppercase fw-semibold text-break mt-1"
+    style={{
+      fontSize: "clamp(0.5rem, 1.7vw, 0.62rem)",
+      lineHeight: 1.4,
+      overflowWrap: "anywhere",
+    }}
+  >
+    {lastPurchaseType === "subscription"
+      ? `${user.subscription?.plan || "Premium"} Plan`
+      : "Points"}
+  </div>
+</div>
+
+
+
           </div>
 
           <div className="col-4">
