@@ -11,8 +11,7 @@ const Footer = () => {
     return (
       location.pathname === path ||
       location.pathname.startsWith(`${path}/`) ||
-      (path === "/conversations" &&
-        location.pathname.startsWith("/chat/"))
+      (path === "/conversations" && location.pathname.startsWith("/chat/"))
     );
   };
 
@@ -23,6 +22,14 @@ const Footer = () => {
       icon: "bi-people",
       active: isActive("/more/people"),
     },
+
+    {
+      label: "Chat",
+      path: "/conversations",
+      icon: "bi-chat-dots",
+      active: isActive("/conversations"),
+    },
+
     {
       label: "Notifications",
       path: "/notifications",
@@ -30,12 +37,7 @@ const Footer = () => {
       active: isActive("/notifications"),
       badge: hasUnreadNotifications ? unreadCount : 0,
     },
-    {
-      label: "Chat",
-      path: "/conversations",
-      icon: "bi-chat-dots",
-      active: isActive("/conversations"),
-    },
+
     {
       label: "Profile",
       path: "/profile/me",
@@ -87,9 +89,7 @@ const Footer = () => {
                   }}
                 >
                   {item.badge > 99 ? "99+" : item.badge}
-                  <span className="visually-hidden">
-                    Unread notifications
-                  </span>
+                  <span className="visually-hidden">Unread notifications</span>
                 </span>
               )}
             </span>
