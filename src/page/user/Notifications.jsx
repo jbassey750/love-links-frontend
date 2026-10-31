@@ -369,19 +369,18 @@ const Notifications = () => {
   // ==========================================
 
   const markAllAsRead = async () => {
-    setNotifications((prev) =>
-      prev.map((notification) => ({
-        ...notification,
-        isRead: true,
-      }))
-    );
-
-    setUnreadCount(0);
-
     try {
       await axios.patch(
         "/notifications/read-all"
       );
+
+      setNotifications((prev) =>
+        prev.map((notification) => ({
+          ...notification,
+          isRead: true,
+        }))
+      );
+      setUnreadCount(0);
 
       showPopup(
         "All notifications marked as read."

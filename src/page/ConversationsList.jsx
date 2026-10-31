@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useContext } from "react";
+import {
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { ChatContext } from "../context/ChatContext";
 import { NotificationContext } from "../context/NotificationContext";
@@ -49,147 +55,156 @@ const ConversationsList = () => {
 
   const { setSelectedChat } = useContext(ChatContext);
 
-  const { latestNotification, clearLatestNotification } =
+  const { messageEvents, messageEventVersion } =
     useContext(NotificationContext);
 
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const [error, setError] = useState(null);
+  const fetchRequestIdRef = useRef(0);
+  const mountedRef = useRef(true);
+  const processedMessageIdsRef = useRef(new Set());
+  const lastMessageEventVersionRef = useRef(messageEventVersion);
 
   const [chatToDelete, setChatToDelete] = useState(null);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Fetch conversations
-  useEffect(() => {
-    let isMounted = true;
+  const fetchMatches = useCallback(async () => {
+    const requestId = ++fetchRequestIdRef.current;
 
-    const fetchMatches = async () => {
-      try {
-        setError(null);
+    try {
+      const response = await axios.get("/matches");
+      if (!mountedRef.current || requestId !== fetchRequestIdRef.current) return;
 
-        const response = await axios.get("/matches");
+      setError(null);
+      const responseData = response.data;
+      const rawMatches = Array.isArray(responseData)
+        ? responseData
+        : responseData.matches || responseData.data || [];
 
-        if (isMounted) {
-          const responseData = response.data;
+      const formattedConversations = rawMatches.map((match) => {
+        const matchUser = match.user || match.matchedUser || match;
 
-          const rawMatches = Array.isArray(responseData)
-            ? responseData
-            : responseData.matches || responseData.data || [];
+        return {
+          id: match._id || match.id,
+          chatId: match.chatId || match._id || match.id,
+          name: matchUser.fullName || matchUser.name || "User",
+          lastMessage: match.lastMessage || "No messages yet",
+          isLastMessageUser: Boolean(match.isLastMessageUser),
+          timestamp:
+            match.lastMessageAt || match.updatedAt || match.createdAt || "",
+          unreadCount: Number(match.unreadCount) || 0,
+          isRead: match.unreadCount > 0 ? false : true,
+          isOnline: matchUser.status === "online",
+          image:
+            matchUser.photo ||
+            matchUser.image ||
+            matchUser.avatar ||
+            matchUser.profilePicture ||
+            "",
+          raw: match,
+        };
+      });
 
-          const formattedConversations = rawMatches.map((match) => {
-            const matchUser = match.user || match.matchedUser || match;
+      formattedConversations.sort(
+        (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
+      );
+      setConversations(formattedConversations);
+    } catch (err) {
+      console.error("Failed to fetch matches from server:", err);
 
-            return {
-              id: match._id || match.id,
-              chatId: match.chatId || match._id || match.id,
-              name: matchUser.fullName || matchUser.name || "User",
-              lastMessage: match.lastMessage || "No messages yet",
-              isLastMessageUser: Boolean(match.isLastMessageUser),
-              timestamp: match.lastMessageAt || match.updatedAt || match.createdAt || "",
-              unreadCount: match.unreadCount || 0,
-              isRead: match.isRead !== undefined ? match.isRead : true,
-              isOnline: matchUser.status === "online",
-              image:
-                matchUser.photo ||
-                matchUser.image ||
-                matchUser.avatar ||
-                matchUser.profilePicture ||
-                "",
-              raw: match,
-            };
-          });
-
-          setConversations(formattedConversations);
-        }
-      } catch (err) {
-        console.error("Failed to fetch matches from server:", err);
-
-        if (isMounted) {
-          setError("Failed to load conversations. Please try again later.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      if (mountedRef.current && requestId === fetchRequestIdRef.current) {
+        setError("Failed to load conversations. Please try again later.");
       }
-    };
-
-    fetchMatches();
-
-    return () => {
-      isMounted = false;
-    };
+    } finally {
+      if (mountedRef.current && requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  // Handle new message notification
   useEffect(() => {
-    if (!latestNotification) return;
+    mountedRef.current = true;
+    void Promise.resolve().then(fetchMatches);
 
-    if (latestNotification.type !== "message") {
-      clearLatestNotification?.();
-      return;
-    }
+    return () => {
+      mountedRef.current = false;
+      fetchRequestIdRef.current += 1;
+    };
+  }, [fetchMatches]);
 
-    const notificationChatId =
-      latestNotification.data?.chatId || latestNotification.chatId;
+  useEffect(() => {
+    for (const message of messageEvents) {
+      if (message.eventVersion <= lastMessageEventVersionRef.current) continue;
+      lastMessageEventVersionRef.current = message.eventVersion;
 
-    if (!notificationChatId) {
-      console.warn("Message notification has no chatId:", latestNotification);
-
-      clearLatestNotification?.();
-      return;
-    }
-
-    const sender = latestNotification.sender || latestNotification.data?.sender || {};
-    const messageContent =
-      latestNotification.body ||
-      latestNotification.message ||
-      latestNotification.data?.message ||
-      "New message";
-
-    setConversations((prev) => {
-      const existingChatIndex = prev.findIndex(
-        (chat) =>
-          chat.chatId?.toString() === notificationChatId?.toString() ||
-          chat.id?.toString() === notificationChatId?.toString()
-      );
-
-      if (existingChatIndex !== -1) {
-        const existingChat = prev[existingChatIndex];
-        const updatedChat = {
-          ...existingChat,
-          lastMessage: messageContent,
-          isLastMessageUser: false,
-          isRead: false,
-          unreadCount: Math.max(1, Number(existingChat.unreadCount || 0) + 1),
-          timestamp: new Date().toISOString(),
-        };
-
-        const updatedList = [...prev];
-        updatedList.splice(existingChatIndex, 1);
-        return [updatedChat, ...updatedList];
+      const messageId = message?._id || message?.id;
+      const normalizedMessageId = messageId?.toString();
+      if (!normalizedMessageId || processedMessageIdsRef.current.has(normalizedMessageId)) {
+        continue;
       }
 
-      // If it's a new conversation received via notification
-      const newChat = {
-        id: notificationChatId,
-        chatId: notificationChatId,
-        name: sender.fullName || sender.name || "User",
-        lastMessage: messageContent,
-        isLastMessageUser: false,
-        timestamp: new Date().toISOString(),
-        unreadCount: 1,
-        isRead: false,
-        isOnline: sender.status === "online",
-        image: sender.photo || sender.image || sender.avatar || "",
-        raw: latestNotification,
-      };
+      processedMessageIdsRef.current.add(normalizedMessageId);
+      const chatId =
+        message.chat?._id ||
+        message.chat?.toString?.() ||
+        message.chatId?.toString?.();
 
-      return [newChat, ...prev];
-    });
+      if (!chatId) continue;
 
-    clearLatestNotification?.();
-  }, [latestNotification]);
+      const existingConversation = conversations.find(
+        (chat) =>
+          chat.chatId?.toString() === chatId ||
+          chat.id?.toString() === chatId
+      );
+
+      if (!existingConversation) {
+        void Promise.resolve().then(fetchMatches);
+        continue;
+      }
+
+      const timestamp = message.createdAt || new Date().toISOString();
+      const messagePreview =
+        message.message ||
+        {
+          image: "Photo",
+          audio: "Audio message",
+          video: "Video",
+        }[message.messageType] ||
+        "New message";
+
+      void Promise.resolve().then(() => {
+        if (!mountedRef.current) return;
+
+        setConversations((prev) => {
+          const index = prev.findIndex(
+            (chat) =>
+              chat.chatId?.toString() === chatId ||
+              chat.id?.toString() === chatId
+          );
+          if (index === -1) return prev;
+
+          const current = prev[index];
+          const updated = {
+            ...current,
+            lastMessage: messagePreview,
+            isLastMessageUser: false,
+            isRead: false,
+            unreadCount: Number(current.unreadCount || 0) + 1,
+            timestamp,
+          };
+
+          const next = [...prev];
+          next.splice(index, 1);
+          next.push(updated);
+          next.sort(
+            (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
+          );
+          return next;
+        });
+      });
+    }
+  }, [messageEvents, messageEventVersion, conversations, fetchMatches]);
 
   // Auto-dismiss success toast after 3 seconds
   useEffect(() => {

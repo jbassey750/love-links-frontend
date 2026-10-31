@@ -1,22 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "../api/axios";
 import Loader from "../components/Loader";
 
 const DiscoverUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ search: "" });
   const [searching, setSearching] = useState(false);
-
-  const [filters, setFilters] = useState({
-    search: "",
-  });
-
   const [selectedUser, setSelectedUser] = useState(null);
+
   const [likeLoading, setLikeLoading] = useState(null);
   const [popupMessage, setPopupMessage] = useState("");
 
   const searchRequestRef = useRef(0);
   const searchTimerRef = useRef(null);
+  const initialSearchEffectRef = useRef(true);
 
   // --------------------------------------------------
   // Popup
@@ -32,60 +30,60 @@ const DiscoverUsers = () => {
   // --------------------------------------------------
   // Fetch users
   // --------------------------------------------------
-  const fetchUsers = async (customFilters = filters) => {
-    const requestId = ++searchRequestRef.current;
+const fetchUsers = async (activeFilters = filters) => {
+  const requestId = ++searchRequestRef.current;
+  const searchTerm = activeFilters.search.trim().toLowerCase();
 
-    try {
-      setSearching(true);
+  try {
+    const response = await axios.get("/discover");
 
-      const params = {};
-
-      Object.entries(customFilters).forEach(([key, value]) => {
-        const cleanedValue = typeof value === "string" ? value.trim() : value;
-
-        if (
-          cleanedValue !== "" &&
-          cleanedValue !== null &&
-          cleanedValue !== undefined
-        ) {
-          params[key] = cleanedValue;
-        }
-      });
-
-      const response = await axios.get("/discover", {
-        params,
-      });
-
-      // Ignore an older request if a newer search has already started
-      if (requestId !== searchRequestRef.current) {
-        return;
-      }
-
-      const payload =
-        response.data?.users || response.data?.data || response.data || [];
-
-      setUsers(Array.isArray(payload) ? payload : []);
-    } catch (error) {
-      // Ignore cancelled/old requests
-      if (requestId !== searchRequestRef.current) {
-        return;
-      }
-
-      console.error("Failed to fetch discover users:", error);
-
-      showPopup(
-        error.response?.data?.message ||
-          "Unable to load users. Please try again.",
-      );
-
-      setUsers([]);
-    } finally {
-      if (requestId === searchRequestRef.current) {
-        setLoading(false);
-        setSearching(false);
-      }
+    if (requestId !== searchRequestRef.current) {
+      return;
     }
-  };
+
+    const payload =
+      response.data?.users || response.data?.data || response.data || [];
+
+    const fetchedUsers = Array.isArray(payload) ? payload : [];
+    setUsers(
+      searchTerm
+        ? fetchedUsers.filter((user) =>
+            `${user.fullName || ""} ${user.username || ""}`
+              .toLowerCase()
+              .includes(searchTerm),
+          )
+        : fetchedUsers,
+    );
+  } catch (error) {
+    if (requestId !== searchRequestRef.current) {
+      return;
+    }
+
+    console.error("Failed to fetch discover users:", error);
+
+    showPopup(
+      error.response?.data?.message ||
+        "Unable to load users. Please try again.",
+    );
+
+    setUsers([]);
+  } finally {
+    if (requestId === searchRequestRef.current) {
+      setLoading(false);
+      setSearching(false);
+    }
+  }
+};
+
+
+
+
+
+
+
+
+
+
 
   // --------------------------------------------------
   // Initial fetch
@@ -95,8 +93,8 @@ const DiscoverUsers = () => {
   }, []);
 
   useEffect(() => {
-    // Don't automatically search on the initial empty value
-    if (filters.search.trim() === "") {
+    if (initialSearchEffectRef.current) {
+      initialSearchEffectRef.current = false;
       return;
     }
 
@@ -104,6 +102,7 @@ const DiscoverUsers = () => {
       clearTimeout(searchTimerRef.current);
     }
 
+    setSearching(true);
     searchTimerRef.current = setTimeout(() => {
       fetchUsers(filters);
     }, 350);
@@ -329,79 +328,79 @@ const DiscoverUsers = () => {
         {/* ------------------------------------------------ */}
         {/* Search / Filter Box */}
         {/* ------------------------------------------------ */}
-        <div className="bg-white rounded-4 shadow-sm border-0 p-3 p-md-4 mb-4">
-          <form onSubmit={handleSearch}>
-            <div className="mb-0">
-              <label
-                className="form-label fw-semibold text-dark"
-                style={{ fontSize: "0.8rem" }}
-              >
-                Search People
-              </label>
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
-              <div className="input-group">
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search text-muted"></i>
-                </span>
+        
+        
+        
+        
 
-                <input
-                  type="text"
-                  name="search"
-                  value={filters.search}
-                  onChange={handleFilterChange}
-                  className="form-control border-start-0"
-                  placeholder="Search by username, age, state, region, interest..."
-                />
-              </div>
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
-              <small
-                className="text-muted d-block mt-2"
-                style={{ fontSize: "0.72rem" }}
-              >
-                Search for people by username, name, age, state, region, or
-                interest.
-              </small>
-            </div>
+        
+        
+        
+        
+        
+        
+        
+        
 
-            {/* Buttons */}
-            <div className="d-flex flex-wrap gap-2 mt-4">
-              <button
-                type="submit"
-                disabled={searching}
-                className="btn text-white rounded-pill px-4 fw-semibold"
-                style={{
-                  backgroundColor: "#73112d",
-                  fontSize: "0.85rem",
-                }}
-              >
-                {searching ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-search me-2"></i>
-                    Search
-                  </>
-                )}
-              </button>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
-              <button
-                type="button"
-                onClick={handleReset}
-                className="btn btn-light rounded-pill px-4 fw-semibold"
-                style={{ fontSize: "0.85rem" }}
-              >
-                <i className="bi bi-arrow-counterclockwise me-2"></i>
-                Reset
-              </button>
-            </div>
-          </form>
-        </div>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
         {/* ------------------------------------------------ */}
         {/* Results Header */}

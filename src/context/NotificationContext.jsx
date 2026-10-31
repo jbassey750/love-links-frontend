@@ -6,11 +6,15 @@ export const NotificationContext = createContext({
   unreadCount: 0,
   notifications: [],
   latestNotification: null,
+  latestMessage: null,
+  messageEvents: [],
+  messageEventVersion: 0,
+  socket: null,
   refreshUnreadCount: async () => {},
   refreshNotifications: async () => {},
   setUnreadCount: () => {},
   setNotifications: () => {},
-  clearLatestNotification: () => {},
+  clearLatestNotification: () => {}, 
   API_ORIGIN: "",
 });
 

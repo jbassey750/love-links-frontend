@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import { useLocation } from "react-router-dom";
 import axios from "../api/axios";
@@ -8,14 +8,26 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [latestNotification, setLatestNotification] = useState(null);
+  const [latestMessage, setLatestMessage] = useState(null);
+  const [messageEvents, setMessageEvents] = useState([]);
+  const [messageEventVersion, setMessageEventVersion] = useState(0);
+  const [socket, setSocket] = useState(null);
 
   const socketRef = useRef(null);
   const socketUserIdRef = useRef(null);
   const loadedUserIdRef = useRef(null);
   const notificationIdsRef = useRef(new Set());
   const realtimeNotificationIdsRef = useRef(new Set());
+  const notificationFingerprintsRef = useRef(new Map());
+  const messageIdsRef = useRef(new Set());
+  const messageEventVersionRef = useRef(0);
   const notificationEventVersionRef = useRef(0);
+  const notificationsRef = useRef(notifications);
   const location = useLocation();
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
   const API_URL =
     import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -61,6 +73,9 @@ export const NotificationProvider = ({ children }) => {
   // ==========================================
 
   const refreshUnreadCount = async () => {
+    const requestEventVersion = notificationEventVersionRef.current;
+    const requestUserId = loadedUserIdRef.current;
+
     try {
       const response = await axios.get(
         "/notifications/unread-count"
@@ -72,7 +87,12 @@ export const NotificationProvider = ({ children }) => {
         response.data?.unreadCount ??
         0;
 
-      setUnreadCount(Number(count) || 0);
+      if (
+        notificationEventVersionRef.current === requestEventVersion &&
+        loadedUserIdRef.current === requestUserId
+      ) {
+        setUnreadCount(Number(count) || 0);
+      }
     } catch (error) {
       console.error(
         "Failed to refresh unread notifications count:",
@@ -86,10 +106,11 @@ export const NotificationProvider = ({ children }) => {
   // ==========================================
 
   const refreshNotifications = async () => {
-    const requestEventVersion = notificationEventVersionRef.current;
+    const requestUserId = loadedUserIdRef.current;
 
     try {
       const response = await axios.get("/notifications");
+      if (loadedUserIdRef.current !== requestUserId) return;
 
       const notificationsPayload =
         response.data?.notifications ||
@@ -98,26 +119,39 @@ export const NotificationProvider = ({ children }) => {
         [];
 
       if (Array.isArray(notificationsPayload)) {
-        const fetchedIds = new Set(
-          notificationsPayload
-            .map((item) => item?._id || item?.id)
-            .filter(Boolean)
-            .map((id) => id.toString())
-        );
-
         setNotifications((current) => {
-          const liveNotifications =
-            notificationEventVersionRef.current !== requestEventVersion
-              ? current.filter((item) => {
-                  const id = item?._id || item?.id;
-                  return (
-                    id &&
-                    realtimeNotificationIdsRef.current.has(id.toString()) &&
-                    !fetchedIds.has(id.toString())
-                  );
-                })
-              : [];
-          const merged = [...liveNotifications, ...notificationsPayload];
+          const currentRealtimeById = new Map(
+            current
+              .map((item) => {
+                const id = item?._id || item?.id;
+                return [id?.toString(), item];
+              })
+              .filter(([id]) =>
+                id && realtimeNotificationIdsRef.current.has(id)
+              )
+          );
+          const fetchedIds = new Set(
+            notificationsPayload
+              .map((item) => item?._id || item?.id)
+              .filter(Boolean)
+              .map((id) => id.toString())
+          );
+          const merged = [
+            ...current.filter((item) => {
+              const id = item?._id || item?.id;
+              return (
+                id &&
+                realtimeNotificationIdsRef.current.has(id.toString()) &&
+                !fetchedIds.has(id.toString())
+              );
+            }),
+            ...notificationsPayload.map((item) => {
+              const id = item?._id || item?.id;
+              return id
+                ? currentRealtimeById.get(id.toString()) || item
+                : item;
+            }),
+          ];
 
           notificationIdsRef.current = new Set(
             merged
@@ -146,12 +180,20 @@ export const NotificationProvider = ({ children }) => {
         socketRef.current.disconnect();
         socketRef.current = null;
         socketUserIdRef.current = null;
+        setSocket(null);
       }
 
       if (loadedUserIdRef.current) {
+        notificationEventVersionRef.current += 1;
         loadedUserIdRef.current = null;
         notificationIdsRef.current.clear();
         realtimeNotificationIdsRef.current.clear();
+        notificationFingerprintsRef.current.clear();
+        messageIdsRef.current.clear();
+        setLatestMessage(null);
+        setMessageEvents([]);
+        setMessageEventVersion(0);
+        messageEventVersionRef.current = 0;
         setNotifications([]);
         setUnreadCount(0);
         setLatestNotification(null);
@@ -163,12 +205,19 @@ export const NotificationProvider = ({ children }) => {
     const normalizedUserId = userId.toString();
 
     if (loadedUserIdRef.current !== normalizedUserId) {
+      notificationEventVersionRef.current += 1;
       loadedUserIdRef.current = normalizedUserId;
       notificationIdsRef.current.clear();
       realtimeNotificationIdsRef.current.clear();
+      notificationFingerprintsRef.current.clear();
       setNotifications([]);
       setUnreadCount(0);
       setLatestNotification(null);
+      setLatestMessage(null);
+      setMessageEvents([]);
+      setMessageEventVersion(0);
+      messageIdsRef.current.clear();
+      messageEventVersionRef.current = 0;
       refreshUnreadCount();
       refreshNotifications();
     }
@@ -197,7 +246,102 @@ export const NotificationProvider = ({ children }) => {
     });
 
     socketRef.current = socket;
-  socketUserIdRef.current = normalizedUserId;
+    socketUserIdRef.current = normalizedUserId;
+    setSocket(socket);
+
+    const handleIncomingNotification = (notification) => {
+      if (!notification) return;
+
+      const body =
+        notification.body ||
+        notification.message ||
+        notification.title ||
+        "You have a new notification.";
+      const fingerprint = JSON.stringify([
+        notification.type || "",
+        notification.title || "",
+        body,
+        notification.data?.chatId?.toString?.() || notification.data?.chatId || "",
+        notification.data?.matchId?.toString?.() || notification.data?.matchId || "",
+        notification.data?.likeId?.toString?.() || notification.data?.likeId || "",
+        notification.data?.userId?.toString?.() || notification.data?.userId || "",
+      ]);
+      const now = Date.now();
+      const fingerprints = notificationFingerprintsRef.current;
+
+      for (const [key, expiresAt] of fingerprints) {
+        if (expiresAt <= now) fingerprints.delete(key);
+      }
+
+      if ((fingerprints.get(fingerprint) || 0) > now) return;
+      fingerprints.set(fingerprint, now + 2000);
+
+      const notificationId =
+        notification?._id || notification?.id;
+      const normalizedNotificationId = notificationId?.toString();
+
+      if (
+        normalizedNotificationId &&
+        realtimeNotificationIdsRef.current.has(normalizedNotificationId)
+      ) {
+        return;
+      }
+
+      const normalizedNotification = {
+        ...notification,
+        _id: normalizedNotificationId || `realtime-${now}`,
+        body,
+        createdAt: notification.createdAt || new Date(now).toISOString(),
+      };
+
+      realtimeNotificationIdsRef.current.add(normalizedNotification._id);
+      notificationEventVersionRef.current += 1;
+
+      setNotifications((prev) =>
+        prev.some(
+          (item) =>
+            (item?._id || item?.id)?.toString() ===
+            normalizedNotification._id.toString()
+        )
+          ? prev
+          : [normalizedNotification, ...prev]
+      );
+      setUnreadCount((prev) => prev + 1);
+      setLatestNotification(normalizedNotification);
+    };
+
+    const handleIncomingMessage = (message) => {
+      if (!message) return;
+
+      const messageId = message?._id || message?.id;
+      const normalizedMessageId = messageId?.toString();
+      const senderId =
+        message.sender?._id?.toString?.() ||
+        message.senderId?.toString?.() ||
+        message.sender?.toString?.();
+
+      if (
+        !normalizedMessageId ||
+        messageIdsRef.current.has(normalizedMessageId) ||
+        senderId === normalizedUserId
+      ) {
+        return;
+      }
+
+      messageIdsRef.current.add(normalizedMessageId);
+      if (messageIdsRef.current.size > 200) {
+        messageIdsRef.current.delete(messageIdsRef.current.values().next().value);
+      }
+
+      messageEventVersionRef.current += 1;
+      const event = {
+        ...message,
+        eventVersion: messageEventVersionRef.current,
+      };
+      setLatestMessage(event);
+      setMessageEventVersion(event.eventVersion);
+      setMessageEvents((prev) => [...prev, event].slice(-100));
+    };
 
     // ------------------------------------------
     // Socket connected
@@ -232,50 +376,13 @@ export const NotificationProvider = ({ children }) => {
     // NEW NOTIFICATION
     // ------------------------------------------
 
-    socket.on("new-notification", (notification) => {
-      console.log(
-        "🔔 New notification received:",
-        notification
-      );
+    socket.on("new-notification", handleIncomingNotification);
+    socket.on("notification", handleIncomingNotification);
 
-      if (!notification) return;
-
-      const notificationId =
-        notification?._id || notification?.id;
-
-      const normalizedNotificationId = notificationId?.toString();
-
-      if (
-        normalizedNotificationId &&
-        notificationIdsRef.current.has(normalizedNotificationId)
-      ) {
-        return;
-      }
-
-      if (normalizedNotificationId) {
-        notificationIdsRef.current.add(normalizedNotificationId);
-        realtimeNotificationIdsRef.current.add(normalizedNotificationId);
-      }
-
-      notificationEventVersionRef.current += 1;
-
-      // Add notification to global notification list
-      setNotifications((prev) => {
-        return [notification, ...prev];
-      });
-
-      // Update unread count
-      setUnreadCount((prev) => prev + 1);
-
-      // Make popup available globally
-      setLatestNotification(notification);
-    });
-
-    // ------------------------------------------
-    // NOTIFICATION READ
-    // ------------------------------------------
+    socket.on("new-message", handleIncomingMessage);
 
     socket.on("notification-read", (data) => {
+      notificationEventVersionRef.current += 1;
       console.log(
         "Notification marked as read:",
         data
@@ -283,30 +390,22 @@ export const NotificationProvider = ({ children }) => {
 
       const notificationId =
         data?.notificationId;
+      if (notificationId) {
+        realtimeNotificationIdsRef.current.add(notificationId.toString());
+      }
 
       setNotifications((prev) =>
         prev.map((notification) => {
-          const currentId =
-            notification?._id ||
-            notification?.id;
-
-          if (
-            currentId?.toString() ===
-            notificationId?.toString()
-          ) {
-            return {
-              ...notification,
-              isRead: true,
-            };
+          const currentId = notification?._id || notification?.id;
+          if (currentId?.toString() !== notificationId?.toString()) {
+            return notification;
           }
 
-          return notification;
+          return { ...notification, isRead: true };
         })
       );
 
-      setUnreadCount((prev) =>
-        Math.max(0, prev - 1)
-      );
+      refreshUnreadCount();
     });
 
     // ------------------------------------------
@@ -314,6 +413,11 @@ export const NotificationProvider = ({ children }) => {
     // ------------------------------------------
 
     socket.on("all-notifications-read", () => {
+      notificationEventVersionRef.current += 1;
+      notificationsRef.current.forEach((notification) => {
+        const id = notification?._id || notification?.id;
+        if (id) realtimeNotificationIdsRef.current.add(id.toString());
+      });
       console.log(
         "All notifications marked as read"
       );
@@ -333,6 +437,7 @@ export const NotificationProvider = ({ children }) => {
     // ------------------------------------------
 
     socket.on("notification-deleted", (data) => {
+      notificationEventVersionRef.current += 1;
       console.log(
         "Notification deleted:",
         data
@@ -340,6 +445,9 @@ export const NotificationProvider = ({ children }) => {
 
       const notificationId =
         data?.notificationId;
+      if (notificationId) {
+        realtimeNotificationIdsRef.current.add(notificationId.toString());
+      }
 
       setNotifications((prev) =>
         prev.filter((notification) => {
@@ -372,24 +480,7 @@ export const NotificationProvider = ({ children }) => {
     // Cleanup
     // ------------------------------------------
 
-    return () => {
-      console.log(
-        "Cleaning up notification socket..."
-      );
-
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("new-notification");
-      socket.off("notification-read");
-      socket.off("all-notifications-read");
-      socket.off("notification-deleted");
-      socket.off("disconnect");
-
-      socket.disconnect();
-
-      socketRef.current = null;
-    };
-  }, [location.pathname]);
+  }, [location.pathname, SOCKET_URL]);
 
   useEffect(() => {
     return () => {
@@ -403,9 +494,9 @@ export const NotificationProvider = ({ children }) => {
   // Clear popup notification
   // ==========================================
 
-  const clearLatestNotification = () => {
+  const clearLatestNotification = useCallback(() => {
     setLatestNotification(null);
-  };
+  }, []);
 
   return (
     <NotificationContext.Provider
@@ -413,6 +504,10 @@ export const NotificationProvider = ({ children }) => {
         unreadCount,
         notifications,
         latestNotification,
+        latestMessage,
+        messageEvents,
+        messageEventVersion,
+        socket,
         refreshUnreadCount,
         refreshNotifications,
         setUnreadCount,

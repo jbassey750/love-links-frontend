@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NotificationContext } from "../context/NotificationContext";
 
@@ -10,36 +10,28 @@ const NotificationPopup = () => {
     clearLatestNotification,
   } = useContext(NotificationContext);
 
-  const [visible, setVisible] = useState(false);
-
   useEffect(() => {
     if (!latestNotification) {
       return;
     }
 
-    setVisible(true);
-
-    // Automatically hide after 5 seconds
-    const timer = setTimeout(() => {
-      setVisible(false);
-
-      setTimeout(() => {
-        clearLatestNotification();
-      }, 300);
-    }, 5000);
+    const timer = setTimeout(clearLatestNotification, 5000);
 
     return () => clearTimeout(timer);
   }, [latestNotification, clearLatestNotification]);
 
-  if (!latestNotification || !visible) {
+  if (!latestNotification) {
     return null;
   }
 
   const notification = latestNotification;
+  const notificationHeading =
+    notification.data?.senderName ||
+    notification.sender?.fullName ||
+    notification.title ||
+    "New Notification";
 
   const handleClick = () => {
-    setVisible(false);
-
     clearLatestNotification();
 
     // Message notification
@@ -72,7 +64,10 @@ const NotificationPopup = () => {
     }
 
     // Match notification
-    if (notification.type === "match") {
+    if (
+      notification.type === "match" ||
+      notification.type === "match-reminder"
+    ) {
       const chatId =
         notification.data?.chatId ||
         notification.chatId;
@@ -86,21 +81,27 @@ const NotificationPopup = () => {
       return;
     }
 
+    if (
+      notification.type === "date" ||
+      notification.type === "date-reminder"
+    ) {
+      navigate("/my-date");
+      return;
+    }
+
     // Default notification
     navigate("/notifications");
   };
 
   const handleClose = (e) => {
     e.stopPropagation();
-
-    setVisible(false);
-
-    setTimeout(() => {
-      clearLatestNotification();
-    }, 300);
+    clearLatestNotification();
   };
 
   const getNotificationText = (item) =>
+    (item?.type === "message" && item?.data?.messageType === "image"
+      ? "Photo"
+      : item?.type === "message" && item?.data?.message) ||
     item?.body ||
     item?.message ||
     item?.data?.message ||
@@ -122,6 +123,18 @@ const NotificationPopup = () => {
         return "🔔";
     }
   };
+
+  const notificationType = (notification.type || "notification")
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+  const notificationTime = notification.createdAt
+    ? new Date(notification.createdAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "Just now";
 
   return (
     <div
@@ -159,7 +172,7 @@ const NotificationPopup = () => {
           <div className="flex-grow-1 min-w-0">
             <div className="d-flex align-items-center justify-content-between gap-2">
               <h6 className="fw-bold mb-1 text-dark">
-                {notification.title || "New Notification"}
+                {notificationHeading}
               </h6>
 
               <button
@@ -185,15 +198,26 @@ const NotificationPopup = () => {
               {getNotificationText(notification)}
             </p>
 
-            <small
-              className="fw-semibold"
-              style={{
-                color: "#73112d",
-                fontSize: "0.75rem",
-              }}
-            >
-              Tap to view
-            </small>
+            <div className="d-flex align-items-center justify-content-between gap-2">
+              <small
+                className="fw-semibold"
+                style={{
+                  color: "#73112d",
+                  fontSize: "0.75rem",
+                }}
+              >
+                {notificationType} · {notificationTime}
+              </small>
+              <small
+                className="fw-semibold"
+                style={{
+                  color: "#73112d",
+                  fontSize: "0.75rem",
+                }}
+              >
+                Tap to view
+              </small>
+            </div>
           </div>
         </div>
       </div>

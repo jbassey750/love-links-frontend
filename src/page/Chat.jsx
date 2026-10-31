@@ -1,13 +1,14 @@
-import React, { useState, useRef, useEffect, useContext } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { io } from "socket.io-client";
 import { ChatContext } from "../context/ChatContext";
+import { NotificationContext } from "../context/NotificationContext";
 import axios from "../api/axios";
 
 const Chat = (props) => {
   const { chatId: routeChatId } = useParams();
   const context = useContext(ChatContext);
+  const { socket } = useContext(NotificationContext);
   const navigate = useNavigate();
 
   // ---------------------------------------------------------
@@ -107,7 +108,8 @@ const Chat = (props) => {
   const textareaRef = useRef(null);
   const mediaMenuRef = useRef(null);
   const socketRef = useRef(null);
-  const userJoinedRef = useRef(false);
+  const socketChatIdRef = useRef(null);
+  const receivedMessageIdsRef = useRef(new Set());
   const messageImageUrlsRef = useRef(new Set());
 
   // ---------------------------------------------------------
@@ -323,8 +325,33 @@ const Chat = (props) => {
           );
 
           if (!isMounted) return;
+          rawMessages.forEach((msg) => {
+            const id = msg?._id || msg?.id;
+            if (id) receivedMessageIdsRef.current.add(id.toString());
+          });
           setMessages(messagesWithImages);
           setLoading(false);
+
+          const unseenIncomingMessages = rawMessages.filter((msg) => {
+            const senderId =
+              msg.sender?._id?.toString?.() ||
+              msg.senderId?.toString?.() ||
+              msg.sender?.toString?.();
+            return senderId && senderId !== currentUserId && !msg.seen;
+          });
+
+          void Promise.all(
+            unseenIncomingMessages.map(async (msg) => {
+              try {
+                await axios.patch(`/messages/${msg._id || msg.id}/seen`);
+              } catch (seenError) {
+                console.error(
+                  "Failed to mark incoming message as seen:",
+                  seenError,
+                );
+              }
+            }),
+          );
         }
       } catch (err) {
         if (isMounted) {
@@ -351,38 +378,38 @@ const Chat = (props) => {
   // Socket.IO
   // ---------------------------------------------------------
   useEffect(() => {
-    if (!currentChatId) return;
+    if (!currentChatId || !socket) return;
 
-    socketRef.current = io(
-      import.meta.env.VITE_SOCKET_URL || "http://localhost:5000",
-      {
-        transports: ["websocket"],
-      },
-    );
+    const activeChatId = currentChatId.toString();
+    socketRef.current = socket;
+    socketChatIdRef.current = activeChatId;
 
-    socketRef.current.on("connect", () => {
-      const socketUserId = String(
-        currentUser?.id || currentUser?._id || getCurrentUserId() || "",
-      );
+    const joinChat = () => socket.emit("join-chat", activeChatId);
+    socket.on("connect", joinChat);
+    if (socket.connected) joinChat();
 
-      socketRef.current.emit("join-chat", currentChatId);
-
-      if (socketUserId && !userJoinedRef.current) {
-        socketRef.current.emit("join-user", socketUserId);
-
-        userJoinedRef.current = true;
-      }
-    });
-
-    const socket = socketRef.current;
-    socket.on("new-message", async (incomingMsg) => {
-      const incomingChatId =
+    const handleNewMessage = async (incomingMsg) => {
+      const incomingChatId = (
         incomingMsg.chat?._id ||
         incomingMsg.chat?.toString?.() ||
-        incomingMsg.chatId?.toString?.();
+        incomingMsg.chatId?.toString?.()
+      )?.toString();
 
-      if (incomingChatId !== currentChatId?.toString()) {
+      if (incomingChatId !== activeChatId) {
         return;
+      }
+
+      const messageId = incomingMsg?._id || incomingMsg?.id;
+      const normalizedMessageId = messageId?.toString();
+      if (
+        normalizedMessageId &&
+        receivedMessageIdsRef.current.has(normalizedMessageId)
+      ) {
+        return;
+      }
+
+      if (normalizedMessageId) {
+        receivedMessageIdsRef.current.add(normalizedMessageId);
       }
 
       const senderIdentifier =
@@ -411,10 +438,17 @@ const Chat = (props) => {
       const formattedMsg = formatMessage(incomingMsg, currentUserId);
       formattedMsg.image = await loadMessageImage(
         incomingMsg,
-        () => socketRef.current === socket,
+        () =>
+          socketRef.current === socket &&
+          socketChatIdRef.current === activeChatId,
       );
 
-      if (socketRef.current !== socket) return;
+      if (
+        socketRef.current !== socket ||
+        socketChatIdRef.current !== activeChatId
+      ) {
+        return;
+      }
 
       setMessages((prev) => {
         if (prev.some((msg) => msg.id === formattedMsg.id)) {
@@ -423,10 +457,20 @@ const Chat = (props) => {
 
         return [...prev, formattedMsg];
       });
-    });
+      if (normalizedMessageId) {
+        try {
+          await axios.patch(`/messages/${normalizedMessageId}/seen`);
+        } catch (seenError) {
+          console.error(
+            "Failed to mark incoming message as seen:",
+            seenError,
+          );
+        }
+      }
+    };
 
     // Participant online status
-    socketRef.current.on("user-status-changed", (data) => {
+    const handleUserStatusChanged = (data) => {
       const changedUserId = data.userId?.toString?.();
 
       if (
@@ -459,42 +503,32 @@ const Chat = (props) => {
             : prev,
         );
       }
-    });
+    };
+
+    socket.on("new-message", handleNewMessage);
+    socket.on("user-status-changed", handleUserStatusChanged);
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.emit("leave-chat", currentChatId);
+      socket.off("connect", joinChat);
+      socket.off("new-message", handleNewMessage);
+      socket.off("user-status-changed", handleUserStatusChanged);
 
-        socketRef.current.disconnect();
+      if (socket.connected) {
+        socket.emit("leave-chat", activeChatId);
       }
 
-      userJoinedRef.current = false;
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+        socketChatIdRef.current = null;
+      }
     };
   }, [
     currentChatId,
+    socket,
     currentUser,
     activeChat?.currentUserId,
     activeChat?.otherUserId,
   ]);
-
-  // ---------------------------------------------------------
-  // Join user room once current user is loaded
-  // ---------------------------------------------------------
-  useEffect(() => {
-    const socketUserId = String(
-      currentUser?.id || currentUser?._id || getCurrentUserId() || "",
-    );
-
-    if (
-      socketRef.current?.connected &&
-      socketUserId &&
-      !userJoinedRef.current
-    ) {
-      socketRef.current.emit("join-user", socketUserId);
-
-      userJoinedRef.current = true;
-    }
-  }, [currentUser]);
 
   // ---------------------------------------------------------
   // Scroll to bottom

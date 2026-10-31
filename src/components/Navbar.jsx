@@ -160,40 +160,40 @@ const Navbar = ({ location = "Amsterdam" }) => {
           </Link>
 
           {/* Notifications Button */}
-          <Link
-            to="/notifications"
-            className={`btn btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm text-decoration-none position-relative ${
-              currentPath === "/notifications"
-                ? "text-white"
-                : "text-dark bg-white"
-            }`}
-            style={{
-              width: "36px",
-              height: "36px",
-              backgroundColor:
-                currentPath === "/notifications" ? "#5c1d24" : "#ffffff",
-              border: "1px solid rgba(0,0,0,0.05)",
-            }}
-            title="Notifications"
-          >
-            <i className="bi bi-bell fs-6"></i>
-            {hasUnreadNotifications && (
-              <span
-                className="position-absolute top-0 start-100 translate-middle d-flex align-items-center justify-content-center rounded-pill text-white"
-                style={{
-                  minWidth: "20px",
-                  height: "20px",
-                  padding: "0 6px",
-                  fontSize: "0.65rem",
-                  backgroundColor: "#d6333f",
-                  transform: "translate(30%, -30%)",
-                }}
-              >
-                {unreadCount > 99 ? "99+" : unreadCount}
-                <span className="visually-hidden">Unread notifications</span>
-              </span>
-            )}
-          </Link>
+          {/* <Link */}
+            {/* // to="/notifications" */}
+            {/* // className={`btn btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm text-decoration-none position-relative ${ */}
+              {/* // currentPath === "/notifications" */}
+                {/* // ? "text-white" */}
+                {/* // : "text-dark bg-white" */}
+            {/* // }`} */}
+            {/* // style={{ */}
+              {/* // width: "36px", */}
+              {/* // height: "36px", */}
+              {/* // backgroundColor: */}
+                {/* // currentPath === "/notifications" ? "#5c1d24" : "#ffffff", */}
+              {/* // border: "1px solid rgba(0,0,0,0.05)", */}
+            {/* // }} */}
+            {/* // title="Notifications" */}
+          {/* // > */}
+            {/* <i className="bi bi-bell fs-6"></i> */}
+            {/* {hasUnreadNotifications && ( */}
+              {/* // <span */}
+                {/* // className="position-absolute top-0 start-100 translate-middle d-flex align-items-center justify-content-center rounded-pill text-white" */}
+                {/* // style={{ */}
+                  {/* // minWidth: "20px", */}
+                  {/* // height: "20px", */}
+                  {/* // padding: "0 6px", */}
+                  {/* // fontSize: "0.65rem", */}
+                  {/* // backgroundColor: "#d6333f", */}
+                  {/* // transform: "translate(30%, -30%)", */}
+                {/* // }} */}
+              {/* // > */}
+                {/* {unreadCount > 99 ? "99+" : unreadCount} */}
+                {/* <span className="visually-hidden">Unread notifications</span> */}
+              {/* </span> */}
+            {/* // )} */}
+          {/* </Link> */}
         </div>
       </div>
     </nav>

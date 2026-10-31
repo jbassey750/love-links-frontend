@@ -466,51 +466,46 @@ const Profile = () => {
             }}
             style={{ cursor: "pointer" }}
           >
+            <div
+              className="bg-white rounded-4 shadow-sm text-center p-2 p-md-3 h-100 d-flex align-items-center justify-content-center flex-column"
+              style={{
+                border: "1px solid #eee7df",
+                minWidth: 0,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                className="fw-bold text-truncate"
+                style={{
+                  fontFamily: "Georgia, serif",
+                  color: "#801931",
+                  fontSize: "clamp(0.85rem, 2.5vw, 1.5rem)",
+                  lineHeight: 1.3,
+                }}
+                title={
+                  lastPurchaseType === "subscription"
+                    ? "Subscribed"
+                    : String(user.points ?? 0)
+                }
+              >
+                {lastPurchaseType === "subscription"
+                  ? "Subscribed"
+                  : (user.points ?? 0)}
+              </div>
 
-          
-<div
-  className="bg-white rounded-4 shadow-sm text-center p-2 p-md-3 h-100 d-flex align-items-center justify-content-center flex-column"
-  style={{
-    border: "1px solid #eee7df",
-    minWidth: 0,
-    overflow: "hidden",
-  }}
->
-  <div
-    className="fw-bold text-truncate"
-    style={{
-      fontFamily: "Georgia, serif",
-      color: "#801931",
-      fontSize: "clamp(0.85rem, 2.5vw, 1.5rem)",
-      lineHeight: 1.3,
-    }}
-    title={
-      lastPurchaseType === "subscription"
-        ? "Subscribed"
-        : String(user.points ?? 0)
-    }
-  >
-    {lastPurchaseType === "subscription"
-      ? "Subscribed"
-      : user.points ?? 0}
-  </div>
-
-  <div
-    className="text-muted text-uppercase fw-semibold text-break mt-1"
-    style={{
-      fontSize: "clamp(0.5rem, 1.7vw, 0.62rem)",
-      lineHeight: 1.4,
-      overflowWrap: "anywhere",
-    }}
-  >
-    {lastPurchaseType === "subscription"
-      ? `${user.subscription?.plan || "Premium"} Plan`
-      : "Points"}
-  </div>
-</div>
-
-
-
+              <div
+                className="text-muted text-uppercase fw-semibold text-break mt-1"
+                style={{
+                  fontSize: "clamp(0.5rem, 1.7vw, 0.62rem)",
+                  lineHeight: 1.4,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {lastPurchaseType === "subscription"
+                  ? `${user.subscription?.plan || "Premium"} Plan`
+                  : "Points"}
+              </div>
+            </div>
           </div>
 
           <div className="col-4">
