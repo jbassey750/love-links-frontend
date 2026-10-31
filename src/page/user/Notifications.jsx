@@ -6,7 +6,7 @@ import React, {
 
 import { useNavigate } from "react-router-dom";
 
-import Loader from "../../components/Loader";
+import ContentLoader from "../../components/ContentLoader";
 
 import axios from "../../api/axios";
 
@@ -559,10 +559,7 @@ const Notifications = () => {
 
   if (loading) {
     return (
-      <Loader
-        message="Fetching your notifications..."
-        fullScreen={true}
-      />
+      <ContentLoader message="Fetching your notifications..." />
     );
   }
 

@@ -1,6 +1,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ContentLoader from "../../components/ContentLoader";
 import api from "../../api/axios";
 import AdminNavbar from "./adminHearder";
 
@@ -270,24 +271,10 @@ const AdminMatches = () => {
           className="container-fluid py-5"
           style={{
             backgroundColor: "#f8f9fa",
-            minHeight: "100vh",
+            minHeight: "calc(100vh - 64px)",
           }}
         >
-          <div className="d-flex justify-content-center align-items-center py-5">
-            <div className="text-center">
-              <div
-                className="spinner-border"
-                style={{ color: "#73112d" }}
-                role="status"
-              >
-                <span className="visually-hidden">Loading...</span>
-              </div>
-
-              <p className="text-muted mt-3 mb-0">
-                Loading active matches...
-              </p>
-            </div>
-          </div>
+          <ContentLoader message="Loading active matches..." />
         </div>
       </>
     );

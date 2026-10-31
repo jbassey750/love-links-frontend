@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import Loader from "../components/Loader";
+import ContentLoader from "../components/ContentLoader";
 import api from "../api/axios";
 
 const Discover = ({ location = "Amsterdam" }) => {
@@ -189,7 +189,7 @@ const Discover = ({ location = "Amsterdam" }) => {
   };
 
   if (loading) {
-    return <Loader message="Finding profiles near you" fullScreen={true} />;
+    return <ContentLoader message="Finding profiles near you" />;
   }
 
   return (

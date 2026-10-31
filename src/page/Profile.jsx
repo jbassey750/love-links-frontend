@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
+import ContentLoader from "../components/ContentLoader";
 import EditProfileModal from "./user/EditProfileModal";
 
 const getProfilePhotoUrl = (photo, gender) => {
@@ -184,24 +185,7 @@ const Profile = () => {
   };
 
   if (loading) {
-    return (
-      <div
-        className="min-vh-100 d-flex align-items-center justify-content-center"
-        style={{ backgroundColor: "#fbf6f0" }}
-      >
-        <div className="text-center">
-          <div
-            className="spinner-border mb-3"
-            style={{ color: "#801931" }}
-            role="status"
-          />
-
-          <div className="text-muted" style={{ fontSize: "0.9rem" }}>
-            Loading your profile...
-          </div>
-        </div>
-      </div>
-    );
+    return <ContentLoader message="Loading your profile..." />;
   }
 
   if (!user) {

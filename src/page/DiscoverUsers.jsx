@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "../api/axios";
-import Loader from "../components/Loader";
+import ContentLoader from "../components/ContentLoader";
 
 const DiscoverUsers = () => {
   const [users, setUsers] = useState([]);
@@ -286,7 +286,7 @@ const fetchUsers = async (activeFilters = filters) => {
   // Render
   // --------------------------------------------------
   if (loading) {
-    return <Loader message="Finding people for you..." fullScreen={true} />;
+    return <ContentLoader message="Finding people for you..." />;
   }
 
   return (

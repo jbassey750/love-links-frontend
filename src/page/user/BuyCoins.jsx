@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
+import ContentLoader from "../../components/ContentLoader";
 import OrderSummaryModal from "../../components/OrderSummaryModal";
 import PaymentResultModal from "../../components/PaymentResultModal";
 import api from "../../api/axios";
@@ -216,18 +217,8 @@ const BuyCoins = () => {
           </div>
         </header>
 
-        <main className="flex-grow-1 d-flex align-items-center justify-content-center">
-          <div className="text-center">
-            <div
-              className="spinner-border"
-              style={{ color: "#73112D" }}
-              role="status"
-            ></div>
-
-            <p className="text-muted mt-3 mb-0">
-              Loading available packages...
-            </p>
-          </div>
+        <main className="flex-grow-1">
+          <ContentLoader message="Loading available packages..." />
         </main>
       </div>
     );

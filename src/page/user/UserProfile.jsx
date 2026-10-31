@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
+import ContentLoader from "../../components/ContentLoader";
 
 const DEFAULT_PROFILE_IMAGE =
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=500";
@@ -77,27 +78,7 @@ const UserProfile = () => {
   };
 
   if (loading) {
-    return (
-      <div
-        className="min-vh-100 d-flex align-items-center justify-content-center"
-        style={{ backgroundColor: "#fbf6f0" }}
-      >
-        <div className="text-center">
-          <div
-            className="spinner-border mb-3"
-            role="status"
-            style={{ color: "#73112d" }}
-          ></div>
-
-          <p
-            className="text-muted fw-semibold mb-0"
-            style={{ fontSize: "0.9rem" }}
-          >
-            Loading profile...
-          </p>
-        </div>
-      </div>
-    );
+    return <ContentLoader message="Loading profile..." />;
   }
 
   if (error || !user) {

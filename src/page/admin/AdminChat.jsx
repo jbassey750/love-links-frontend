@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import ContentLoader from "../../components/ContentLoader";
 import api from "../../api/axios";
 
 const AdminChat = () => {
@@ -257,20 +258,7 @@ const AdminChat = () => {
   if (loading) {
     return (
       <div className="container-fluid py-4">
-        <div
-          className="d-flex justify-content-center align-items-center"
-          style={{ minHeight: "70vh" }}
-        >
-          <div className="text-center">
-            <div
-              className="spinner-border mb-3"
-              role="status"
-              aria-hidden="true"
-            ></div>
-
-            <div className="text-muted">Loading conversation...</div>
-          </div>
-        </div>
+        <ContentLoader message="Loading conversation..." />
       </div>
     );
   }

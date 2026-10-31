@@ -8,7 +8,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ChatContext } from "../context/ChatContext";
 import { NotificationContext } from "../context/NotificationContext";
-import Loader from "../components/Loader";
+import ContentLoader from "../components/ContentLoader";
 import axios from "../api/axios";
 
 // Helper to safely slice text for mobile preview layouts
@@ -289,7 +289,7 @@ const ConversationsList = () => {
   };
 
   if (loading) {
-    return <Loader message="Loading conversations..." fullScreen={true} />;
+    return <ContentLoader message="Loading conversations..." />;
   }
 
   return (

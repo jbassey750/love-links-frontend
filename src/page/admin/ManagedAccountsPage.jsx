@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import AdminNavbar from "./adminHearder";
+import ContentLoader from "../../components/ContentLoader";
 import api from "../../api/axios";
 
 const ManagedAccountsPage = () => {
@@ -430,20 +431,7 @@ const ManagedAccountsPage = () => {
         <AdminNavbar />
 
         <div className="flex-grow-1 d-flex align-items-center justify-content-center">
-          <div className="text-center">
-            <div
-              className="spinner-border"
-              style={{ color: "#73112d" }}
-              role="status"
-            />
-
-            <div
-              className="text-muted mt-3"
-              style={{ fontSize: "0.85rem" }}
-            >
-              Loading managed accounts...
-            </div>
-          </div>
+          <ContentLoader message="Loading managed accounts..." />
         </div>
       </div>
     );

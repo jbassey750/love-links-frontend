@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChatContext } from "../context/ChatContext";
 import { NotificationContext } from "../context/NotificationContext";
+import ContentLoader from "../components/ContentLoader";
 import axios from "../api/axios";
 
 const Chat = (props) => {
@@ -832,60 +833,7 @@ const Chat = (props) => {
   // Loading screen
   // ---------------------------------------------------------
   if (loading) {
-    return (
-      <div
-        className="min-vh-100 d-flex align-items-center justify-content-center px-4"
-        style={{
-          backgroundColor: "#fbf6f0",
-        }}
-      >
-        <div
-          className="text-center"
-          style={{
-            maxWidth: "300px",
-          }}
-        >
-          <div
-            className="mx-auto mb-4 d-flex align-items-center justify-content-center rounded-circle shadow-sm"
-            style={{
-              width: "72px",
-              height: "72px",
-              backgroundColor: "#fff",
-              border: "1px solid #eee2d8",
-            }}
-          >
-            <div
-              className="spinner-border"
-              role="status"
-              style={{
-                width: "28px",
-                height: "28px",
-                color: "#73112d",
-              }}
-            />
-          </div>
-
-          <h5
-            className="fw-bold mb-2"
-            style={{
-              color: "#5c1d24",
-              fontFamily: "Georgia, serif",
-            }}
-          >
-            Opening conversation
-          </h5>
-
-          <p
-            className="text-muted mb-0"
-            style={{
-              fontSize: "0.85rem",
-            }}
-          >
-            Please wait while we load your conversation...
-          </p>
-        </div>
-      </div>
-    );
+    return <ContentLoader message="Opening conversation..." />;
   }
 
   // ---------------------------------------------------------
