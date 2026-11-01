@@ -6,10 +6,36 @@ import { NotificationContext } from "../context/NotificationContext";
 import ContentLoader from "../components/ContentLoader";
 import axios from "../api/axios";
 
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const encodedPayload = token.split(".")[1];
+    if (!encodedPayload) return null;
+    const base64Payload = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(
+      atob(
+        base64Payload.padEnd(
+          Math.ceil(base64Payload.length / 4) * 4,
+          "=",
+        ),
+      ),
+    );
+    return payload?.id || payload?._id || payload?.userId || null;
+  } catch {
+    return null;
+  }
+};
+
 const Chat = (props) => {
   const { chatId: routeChatId } = useParams();
   const context = useContext(ChatContext);
-  const { socket } = useContext(NotificationContext);
+  const {
+    messageEvents,
+    userStatusEvents,
+    realtimeReconnectVersion,
+  } = useContext(NotificationContext);
   const navigate = useNavigate();
 
   // ---------------------------------------------------------
@@ -108,34 +134,20 @@ const Chat = (props) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const mediaMenuRef = useRef(null);
-  const socketRef = useRef(null);
-  const socketChatIdRef = useRef(null);
   const receivedMessageIdsRef = useRef(new Set());
   const messageImageUrlsRef = useRef(new Set());
+  const activeChatIdRef = useRef(null);
+
+  useEffect(() => {
+    activeChatIdRef.current = currentChatId?.toString() || null;
+  }, [currentChatId]);
 
   // ---------------------------------------------------------
   // Get current user ID from JWT
   // ---------------------------------------------------------
   const getCurrentUserId = () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) return null;
-
-    const parts = token.split(".");
-
-    if (parts.length < 2) return null;
-
-    try {
-      const payload = JSON.parse(atob(parts[1]));
-
-      return payload?.id || payload?._id || payload?.userId || null;
-    } catch (err) {
-      return null;
-    }
+    return getUserIdFromToken();
   };
-
-  const getCurrentUserIdString = () =>
-    String(currentUser?.id || currentUser?._id || getCurrentUserId() || "");
 
   // ---------------------------------------------------------
   // Format message
@@ -158,6 +170,7 @@ const Chat = (props) => {
       text: msg.message || msg.text || msg.content || "",
 
       image: msg.image || msg.mediaUrl || null,
+      createdAt: msg.createdAt || null,
 
       time: msg.createdAt
         ? new Date(msg.createdAt).toLocaleTimeString([], {
@@ -375,25 +388,88 @@ const Chat = (props) => {
     };
   }, [currentChatId]);
 
+  useEffect(() => {
+    if (!currentChatId || realtimeReconnectVersion === 0) return;
+
+    let active = true;
+    const recoverMessages = async () => {
+      try {
+        const response = await axios.get(`/messages/${currentChatId}`);
+        const rawMessages = Array.isArray(response.data?.messages)
+          ? response.data.messages
+          : [];
+        const currentUserId = String(
+          currentUser?.id ||
+            currentUser?._id ||
+            getUserIdFromToken() ||
+            "",
+        );
+        const recoveredMessages = await Promise.all(
+          rawMessages.map(async (message) => ({
+            ...formatMessage(message, currentUserId),
+            image: await loadMessageImage(message, () => active),
+          })),
+        );
+        if (!active) return;
+
+        rawMessages.forEach((message) => {
+          const id = message?._id || message?.id;
+          if (id) receivedMessageIdsRef.current.add(id.toString());
+        });
+        setMessages((current) => {
+          const merged = new Map(
+            recoveredMessages.map((message) => [message.id, message]),
+          );
+          current.forEach((message) => {
+            if (!merged.has(message.id)) merged.set(message.id, message);
+          });
+          return [...merged.values()].sort(
+            (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+          );
+        });
+
+        await Promise.all(
+          rawMessages
+            .filter((message) => {
+              const senderId =
+                message.sender?._id?.toString?.() ||
+                message.senderId?.toString?.() ||
+                message.sender?.toString?.();
+              return senderId !== currentUserId && !message.seen;
+            })
+            .map(async (message) => {
+              try {
+                await axios.patch(`/messages/${message._id || message.id}/seen`);
+              } catch (seenError) {
+                console.error("Failed to mark recovered message as seen:", seenError);
+              }
+            }),
+        );
+      } catch (recoveryError) {
+        console.error("Failed to recover messages after reconnect:", recoveryError);
+      }
+    };
+
+    void recoverMessages();
+    return () => {
+      active = false;
+    };
+  }, [currentChatId, currentUser, realtimeReconnectVersion]);
+
   // ---------------------------------------------------------
-  // Socket.IO
+  // Real-time events
   // ---------------------------------------------------------
   useEffect(() => {
-    if (!currentChatId || !socket) return;
+    if (!currentChatId) return;
 
     const activeChatId = currentChatId.toString();
-    socketRef.current = socket;
-    socketChatIdRef.current = activeChatId;
-
-    const joinChat = () => socket.emit("join-chat", activeChatId);
-    socket.on("connect", joinChat);
-    if (socket.connected) joinChat();
 
     const handleNewMessage = async (incomingMsg) => {
       const incomingChatId = (
         incomingMsg.chat?._id ||
         incomingMsg.chat?.toString?.() ||
-        incomingMsg.chatId?.toString?.()
+        incomingMsg.chatId?.toString?.() ||
+        incomingMsg.chatId
       )?.toString();
 
       if (incomingChatId !== activeChatId) {
@@ -439,17 +515,10 @@ const Chat = (props) => {
       const formattedMsg = formatMessage(incomingMsg, currentUserId);
       formattedMsg.image = await loadMessageImage(
         incomingMsg,
-        () =>
-          socketRef.current === socket &&
-          socketChatIdRef.current === activeChatId,
+        () => activeChatIdRef.current === activeChatId,
       );
 
-      if (
-        socketRef.current !== socket ||
-        socketChatIdRef.current !== activeChatId
-      ) {
-        return;
-      }
+      if (activeChatIdRef.current !== activeChatId) return;
 
       setMessages((prev) => {
         if (prev.some((msg) => msg.id === formattedMsg.id)) {
@@ -506,26 +575,18 @@ const Chat = (props) => {
       }
     };
 
-    socket.on("new-message", handleNewMessage);
-    socket.on("user-status-changed", handleUserStatusChanged);
+    for (const event of messageEvents) {
+      void handleNewMessage(event);
+    }
 
-    return () => {
-      socket.off("connect", joinChat);
-      socket.off("new-message", handleNewMessage);
-      socket.off("user-status-changed", handleUserStatusChanged);
+    for (const event of userStatusEvents) {
+      handleUserStatusChanged(event);
+    }
 
-      if (socket.connected) {
-        socket.emit("leave-chat", activeChatId);
-      }
-
-      if (socketRef.current === socket) {
-        socketRef.current = null;
-        socketChatIdRef.current = null;
-      }
-    };
   }, [
     currentChatId,
-    socket,
+    messageEvents,
+    userStatusEvents,
     currentUser,
     activeChat?.currentUserId,
     activeChat?.otherUserId,

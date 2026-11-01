@@ -170,6 +170,7 @@ const Profile = () => {
       await api.post("/auth/logout");
 
       localStorage.removeItem("token");
+      window.dispatchEvent(new Event("auth-token-changed"));
 
       // Redirect to login
       window.location.href = "/";
@@ -179,6 +180,7 @@ const Profile = () => {
       // Even if the server logout fails,
       // remove the local token so the user is logged out locally.
       localStorage.removeItem("token");
+      window.dispatchEvent(new Event("auth-token-changed"));
 
       window.location.href = "/login";
     }

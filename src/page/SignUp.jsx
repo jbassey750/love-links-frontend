@@ -197,6 +197,7 @@ const SignUpFlow = ({ onComplete }) => {
 
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
+        window.dispatchEvent(new Event("auth-token-changed"));
       }
       setSuccessMessage("Account created successfully.");
       setApiError("");

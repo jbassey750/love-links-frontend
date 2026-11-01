@@ -1,8 +1,30 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { io } from "socket.io-client";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "../api/axios";
 import { NotificationContext } from "./NotificationContext";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+).replace(/\/$/, "");
+
+const getTokenUserId = (token) => {
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    return payload?.id || payload?._id || payload?.userId || null;
+  } catch (error) {
+    console.error("Failed to parse authenticated user from token:", error);
+    return null;
+  }
+};
+
+const getNotificationId = (notification) =>
+  notification?._id?.toString?.() || notification?.id?.toString?.() || null;
+
+const getMessageId = (message) =>
+  message?._id?.toString?.() || message?.id?.toString?.() || null;
 
 export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -11,488 +33,340 @@ export const NotificationProvider = ({ children }) => {
   const [latestMessage, setLatestMessage] = useState(null);
   const [messageEvents, setMessageEvents] = useState([]);
   const [messageEventVersion, setMessageEventVersion] = useState(0);
-  const [socket, setSocket] = useState(null);
+  const [userStatusEvents, setUserStatusEvents] = useState([]);
+  const [connectionStatus, setConnectionStatus] = useState("disconnected");
+  const [realtimeReconnectVersion, setRealtimeReconnectVersion] = useState(0);
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
 
-  const socketRef = useRef(null);
-  const socketUserIdRef = useRef(null);
-  const loadedUserIdRef = useRef(null);
+  const lastEventIdRef = useRef(null);
   const notificationIdsRef = useRef(new Set());
-  const realtimeNotificationIdsRef = useRef(new Set());
-  const notificationFingerprintsRef = useRef(new Map());
   const messageIdsRef = useRef(new Set());
-  const messageEventVersionRef = useRef(0);
   const notificationEventVersionRef = useRef(0);
+  const messageEventVersionRef = useRef(0);
+  const userStatusEventVersionRef = useRef(0);
+  const hadConnectionRef = useRef(false);
   const notificationsRef = useRef(notifications);
-  const location = useLocation();
+  const loadedUserIdRef = useRef(null);
 
   useEffect(() => {
     notificationsRef.current = notifications;
   }, [notifications]);
 
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-  const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
+  useEffect(() => {
+    const handleStorage = (event) => {
+      if (event.key === "token") setToken(event.newValue);
+    };
+    const handleTokenChange = () => setToken(localStorage.getItem("token"));
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("auth-token-changed", handleTokenChange);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("auth-token-changed", handleTokenChange);
+    };
+  }, []);
 
-  // Remove /api because Socket.IO connects to the server root.
-  const SOCKET_URL = API_ORIGIN;
-
-  const getCurrentUserId = () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) return null;
-
-    try {
-      const encodedPayload = token.split(".")[1];
-      if (!encodedPayload) return null;
-
-      const base64Payload = encodedPayload
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
-      const payload = JSON.parse(
-        atob(base64Payload.padEnd(Math.ceil(base64Payload.length / 4) * 4, "="))
-      );
-
-      return (
-        payload?.id ||
-        payload?._id ||
-        payload?.userId ||
-        null
-      );
-    } catch (error) {
-      console.error(
-        "Failed to parse auth token for notification socket:",
-        error
-      );
-
-      return null;
-    }
-  };
-
-  // ==========================================
-  // Refresh unread notification count
-  // ==========================================
-
-  const refreshUnreadCount = async () => {
-    const requestEventVersion = notificationEventVersionRef.current;
+  const refreshUnreadCount = useCallback(async () => {
+    const requestVersion = notificationEventVersionRef.current;
     const requestUserId = loadedUserIdRef.current;
 
     try {
-      const response = await axios.get(
-        "/notifications/unread-count"
-      );
-
+      const response = await axios.get("/notifications/unread-count");
       const count =
         response.data?.unread ??
         response.data?.count ??
         response.data?.unreadCount ??
         0;
-
       if (
-        notificationEventVersionRef.current === requestEventVersion &&
+        notificationEventVersionRef.current === requestVersion &&
         loadedUserIdRef.current === requestUserId
       ) {
         setUnreadCount(Number(count) || 0);
       }
     } catch (error) {
-      console.error(
-        "Failed to refresh unread notifications count:",
-        error
-      );
+      console.error("Failed to refresh unread notifications count:", error);
     }
-  };
+  }, []);
 
-  // ==========================================
-  // Refresh all notifications
-  // ==========================================
-
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
+    const requestVersion = notificationEventVersionRef.current;
     const requestUserId = loadedUserIdRef.current;
 
     try {
       const response = await axios.get("/notifications");
       if (loadedUserIdRef.current !== requestUserId) return;
 
-      const notificationsPayload =
+      const payload =
         response.data?.notifications ||
         response.data?.data ||
         response.data ||
         [];
+      if (!Array.isArray(payload)) return;
 
-      if (Array.isArray(notificationsPayload)) {
-        setNotifications((current) => {
-          const currentRealtimeById = new Map(
-            current
-              .map((item) => {
-                const id = item?._id || item?.id;
-                return [id?.toString(), item];
-              })
-              .filter(([id]) =>
-                id && realtimeNotificationIdsRef.current.has(id)
-              )
-          );
-          const fetchedIds = new Set(
-            notificationsPayload
-              .map((item) => item?._id || item?.id)
-              .filter(Boolean)
-              .map((id) => id.toString())
-          );
-          const merged = [
-            ...current.filter((item) => {
-              const id = item?._id || item?.id;
-              return (
-                id &&
-                realtimeNotificationIdsRef.current.has(id.toString()) &&
-                !fetchedIds.has(id.toString())
-              );
-            }),
-            ...notificationsPayload.map((item) => {
-              const id = item?._id || item?.id;
-              return id
-                ? currentRealtimeById.get(id.toString()) || item
-                : item;
-            }),
-          ];
-
-          notificationIdsRef.current = new Set(
-            merged
-              .map((item) => item?._id || item?.id)
-              .filter(Boolean)
-              .map((id) => id.toString())
-          );
-
-          return merged;
-        });
-      }
+      setNotifications((current) => {
+        const byId = new Map(
+          payload.map((item) => [getNotificationId(item), item]),
+        );
+        if (notificationEventVersionRef.current !== requestVersion) {
+          current.forEach((item) => {
+            const id = getNotificationId(item);
+            if (id && notificationIdsRef.current.has(id)) byId.set(id, item);
+          });
+        }
+        const merged = [...byId.values()].filter(Boolean);
+        notificationIdsRef.current = new Set(
+          merged.map(getNotificationId).filter(Boolean),
+        );
+        return merged.sort(
+          (a, b) =>
+            new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+        );
+      });
     } catch (error) {
-      console.error(
-        "Failed to refresh notifications:",
-        error,
-      );
+      console.error("Failed to refresh notifications:", error);
     }
-  };
+  }, []);
 
-  // Connect once a user token is available, including after SPA login.
   useEffect(() => {
-    const userId = getCurrentUserId();
-
-    if (!userId) {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-        socketUserIdRef.current = null;
-        setSocket(null);
-      }
-
-      if (loadedUserIdRef.current) {
-        notificationEventVersionRef.current += 1;
-        loadedUserIdRef.current = null;
-        notificationIdsRef.current.clear();
-        realtimeNotificationIdsRef.current.clear();
-        notificationFingerprintsRef.current.clear();
-        messageIdsRef.current.clear();
-        setLatestMessage(null);
-        setMessageEvents([]);
-        setMessageEventVersion(0);
-        messageEventVersionRef.current = 0;
-        setNotifications([]);
-        setUnreadCount(0);
-        setLatestNotification(null);
-      }
-
-      return;
-    }
-
-    const normalizedUserId = userId.toString();
-
+    const userId = getTokenUserId(token);
+    const normalizedUserId = userId?.toString() || null;
     if (loadedUserIdRef.current !== normalizedUserId) {
-      notificationEventVersionRef.current += 1;
       loadedUserIdRef.current = normalizedUserId;
+      lastEventIdRef.current = null;
       notificationIdsRef.current.clear();
-      realtimeNotificationIdsRef.current.clear();
-      notificationFingerprintsRef.current.clear();
-      setNotifications([]);
+      messageIdsRef.current.clear();
+      notificationEventVersionRef.current += 1;
+      messageEventVersionRef.current = 0;
+      userStatusEventVersionRef.current = 0;
+      hadConnectionRef.current = false;
       setUnreadCount(0);
+      setNotifications([]);
       setLatestNotification(null);
       setLatestMessage(null);
       setMessageEvents([]);
       setMessageEventVersion(0);
-      messageIdsRef.current.clear();
-      messageEventVersionRef.current = 0;
-      refreshUnreadCount();
-      refreshNotifications();
+      setUserStatusEvents([]);
     }
 
-    if (
-      socketRef.current &&
-      socketUserIdRef.current === normalizedUserId
-    ) {
-      return;
+    if (!token || !userId) {
+      return undefined;
     }
 
-    socketRef.current?.disconnect();
+    let stopped = false;
+    let controller;
 
-    console.log(
-      "Connecting notification socket:",
-      SOCKET_URL
-    );
+    const handleEvent = (event) => {
+      if (event.id) lastEventIdRef.current = event.id;
 
-    const socket = io(SOCKET_URL, {
-      transports: ["websocket"],
-      withCredentials: true,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-    });
-
-    socketRef.current = socket;
-    socketUserIdRef.current = normalizedUserId;
-    setSocket(socket);
-
-    const handleIncomingNotification = (notification) => {
-      if (!notification) return;
-
-      const body =
-        notification.body ||
-        notification.message ||
-        notification.title ||
-        "You have a new notification.";
-      const fingerprint = JSON.stringify([
-        notification.type || "",
-        notification.title || "",
-        body,
-        notification.data?.chatId?.toString?.() || notification.data?.chatId || "",
-        notification.data?.matchId?.toString?.() || notification.data?.matchId || "",
-        notification.data?.likeId?.toString?.() || notification.data?.likeId || "",
-        notification.data?.userId?.toString?.() || notification.data?.userId || "",
-      ]);
-      const now = Date.now();
-      const fingerprints = notificationFingerprintsRef.current;
-
-      for (const [key, expiresAt] of fingerprints) {
-        if (expiresAt <= now) fingerprints.delete(key);
+      if (event.type === "sync-required") {
+        void refreshNotifications();
+        void refreshUnreadCount();
       }
 
-      if ((fingerprints.get(fingerprint) || 0) > now) return;
-      fingerprints.set(fingerprint, now + 2000);
-
-      const notificationId =
-        notification?._id || notification?.id;
-      const normalizedNotificationId = notificationId?.toString();
-
       if (
-        normalizedNotificationId &&
-        realtimeNotificationIdsRef.current.has(normalizedNotificationId)
+        event.type === "new-notification" ||
+        event.type === "notification" ||
+        event.type === "notification-created"
       ) {
+        const notification =
+          event.type === "notification-created"
+            ? event.data?.notification
+            : event.data;
+        if (!notification) return;
+        const id = getNotificationId(notification);
+        if (id && notificationIdsRef.current.has(id)) return;
+
+        const normalized = {
+          ...notification,
+          _id: id || `realtime-${event.id || Date.now()}`,
+          createdAt: notification.createdAt || new Date().toISOString(),
+        };
+        if (id) notificationIdsRef.current.add(id);
+        notificationEventVersionRef.current += 1;
+        setNotifications((current) =>
+          current.some(
+            (item) => getNotificationId(item) === getNotificationId(normalized),
+          )
+            ? current
+            : [normalized, ...current],
+        );
+        if (!normalized.isRead) setUnreadCount((count) => count + 1);
+        setLatestNotification(normalized);
         return;
       }
 
-      const normalizedNotification = {
-        ...notification,
-        _id: normalizedNotificationId || `realtime-${now}`,
-        body,
-        createdAt: notification.createdAt || new Date(now).toISOString(),
-      };
-
-      realtimeNotificationIdsRef.current.add(normalizedNotification._id);
-      notificationEventVersionRef.current += 1;
-
-      setNotifications((prev) =>
-        prev.some(
-          (item) =>
-            (item?._id || item?.id)?.toString() ===
-            normalizedNotification._id.toString()
-        )
-          ? prev
-          : [normalizedNotification, ...prev]
-      );
-      setUnreadCount((prev) => prev + 1);
-      setLatestNotification(normalizedNotification);
-    };
-
-    const handleIncomingMessage = (message) => {
-      if (!message) return;
-
-      const messageId = message?._id || message?.id;
-      const normalizedMessageId = messageId?.toString();
-      const senderId =
-        message.sender?._id?.toString?.() ||
-        message.senderId?.toString?.() ||
-        message.sender?.toString?.();
-
-      if (
-        !normalizedMessageId ||
-        messageIdsRef.current.has(normalizedMessageId) ||
-        senderId === normalizedUserId
-      ) {
+      if (event.type === "notification-read") {
+        notificationEventVersionRef.current += 1;
+        const id = event.data?.notificationId?.toString();
+        const target = notificationsRef.current.find(
+          (item) => getNotificationId(item) === id,
+        );
+        if (target && !target.isRead) {
+          setUnreadCount((count) => Math.max(0, count - 1));
+        }
+        setNotifications((current) =>
+          current.map((item) =>
+            getNotificationId(item) === id ? { ...item, isRead: true } : item,
+          ),
+        );
         return;
       }
 
-      messageIdsRef.current.add(normalizedMessageId);
-      if (messageIdsRef.current.size > 200) {
-        messageIdsRef.current.delete(messageIdsRef.current.values().next().value);
+      if (event.type === "all-notifications-read") {
+        notificationEventVersionRef.current += 1;
+        setUnreadCount(0);
+        setNotifications((current) =>
+          current.map((item) => ({ ...item, isRead: true })),
+        );
+        return;
       }
 
-      messageEventVersionRef.current += 1;
-      const event = {
-        ...message,
-        eventVersion: messageEventVersionRef.current,
-      };
-      setLatestMessage(event);
-      setMessageEventVersion(event.eventVersion);
-      setMessageEvents((prev) => [...prev, event].slice(-100));
+      if (event.type === "notification-deleted") {
+        notificationEventVersionRef.current += 1;
+        const id = event.data?.notificationId?.toString();
+        const target = notificationsRef.current.find(
+          (item) => getNotificationId(item) === id,
+        );
+        if (target && !target.isRead) {
+          setUnreadCount((count) => Math.max(0, count - 1));
+        }
+        setNotifications((current) =>
+          current.filter((item) => getNotificationId(item) !== id),
+        );
+        return;
+      }
+
+      if (event.type === "new-message") {
+        const message = event.data;
+        const id = getMessageId(message);
+        const senderId =
+          message?.sender?._id?.toString?.() ||
+          message?.senderId?.toString?.() ||
+          message?.sender?.toString?.();
+        if (!id || messageIdsRef.current.has(id) || senderId === normalizedUserId) {
+          return;
+        }
+
+        messageIdsRef.current.add(id);
+        if (messageIdsRef.current.size > 500) {
+          messageIdsRef.current.delete(messageIdsRef.current.values().next().value);
+        }
+        messageEventVersionRef.current += 1;
+        const normalized = {
+          ...message,
+          eventVersion: messageEventVersionRef.current,
+        };
+        setLatestMessage(normalized);
+        setMessageEventVersion(normalized.eventVersion);
+        setMessageEvents((current) => [...current, normalized].slice(-100));
+        return;
+      }
+
+      if (event.type === "user-status-changed") {
+        userStatusEventVersionRef.current += 1;
+        setUserStatusEvents((current) =>
+          [
+            ...current,
+            {
+              ...event.data,
+              eventVersion: userStatusEventVersionRef.current,
+            },
+          ].slice(-100),
+        );
+      }
     };
 
-    // ------------------------------------------
-    // Socket connected
-    // ------------------------------------------
-
-    socket.on("connect", () => {
-      console.log(
-        "🔌 Notification socket connected:",
-        socket.id
-      );
-
-      console.log(
-        "👤 Joining notification room:",
-        normalizedUserId
-      );
-
-      socket.emit("join-user", normalizedUserId);
-    });
-
-    // ------------------------------------------
-    // Socket connection error
-    // ------------------------------------------
-
-    socket.on("connect_error", (error) => {
-      console.error(
-        "❌ Notification socket connection error:",
-        error
-      );
-    });
-
-    // ------------------------------------------
-    // NEW NOTIFICATION
-    // ------------------------------------------
-
-    socket.on("new-notification", handleIncomingNotification);
-    socket.on("notification", handleIncomingNotification);
-
-    socket.on("new-message", handleIncomingMessage);
-
-    socket.on("notification-read", (data) => {
-      notificationEventVersionRef.current += 1;
-      console.log(
-        "Notification marked as read:",
-        data
-      );
-
-      const notificationId =
-        data?.notificationId;
-      if (notificationId) {
-        realtimeNotificationIdsRef.current.add(notificationId.toString());
+    const parseFrame = (frame) => {
+      const dataLines = [];
+      for (const line of frame.split("\n")) {
+        if (line.startsWith("id:")) {
+          lastEventIdRef.current = line.slice(3).trim();
+        } else if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trimStart());
+        }
       }
+      if (!dataLines.length) return;
+      try {
+        handleEvent(JSON.parse(dataLines.join("\n")));
+      } catch (error) {
+        console.error("Failed to parse real-time event:", error);
+      }
+    };
 
-      setNotifications((prev) =>
-        prev.map((notification) => {
-          const currentId = notification?._id || notification?.id;
-          if (currentId?.toString() !== notificationId?.toString()) {
-            return notification;
+    const consumeStream = async (response, signal) => {
+      if (!response.body) throw new Error("SSE response has no readable body.");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (!signal.aborted) {
+        const { value, done } = await reader.read();
+        if (done) throw new Error("Real-time stream closed.");
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary !== -1) {
+          parseFrame(buffer.slice(0, boundary));
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf("\n\n");
+        }
+      }
+    };
+
+    const runStream = async () => {
+      let retryDelay = 1000;
+      while (!stopped) {
+        controller = new AbortController();
+        try {
+          setConnectionStatus("connecting");
+          const headers = { Authorization: `Bearer ${token}` };
+          if (lastEventIdRef.current) {
+            headers["Last-Event-ID"] = lastEventIdRef.current;
+          }
+          const response = await fetch(`${API_URL}/events/stream`, {
+            method: "GET",
+            headers,
+            signal: controller.signal,
+            credentials: "include",
+          });
+
+          if (response.status === 401 || response.status === 403) {
+            setConnectionStatus("unauthorized");
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`Real-time stream returned HTTP ${response.status}.`);
           }
 
-          return { ...notification, isRead: true };
-        })
-      );
-
-      refreshUnreadCount();
-    });
-
-    // ------------------------------------------
-    // ALL NOTIFICATIONS READ
-    // ------------------------------------------
-
-    socket.on("all-notifications-read", () => {
-      notificationEventVersionRef.current += 1;
-      notificationsRef.current.forEach((notification) => {
-        const id = notification?._id || notification?.id;
-        if (id) realtimeNotificationIdsRef.current.add(id.toString());
-      });
-      console.log(
-        "All notifications marked as read"
-      );
-
-      setUnreadCount(0);
-
-      setNotifications((prev) =>
-        prev.map((notification) => ({
-          ...notification,
-          isRead: true,
-        }))
-      );
-    });
-
-    // ------------------------------------------
-    // NOTIFICATION DELETED
-    // ------------------------------------------
-
-    socket.on("notification-deleted", (data) => {
-      notificationEventVersionRef.current += 1;
-      console.log(
-        "Notification deleted:",
-        data
-      );
-
-      const notificationId =
-        data?.notificationId;
-      if (notificationId) {
-        realtimeNotificationIdsRef.current.add(notificationId.toString());
+          const isReconnect = hadConnectionRef.current;
+          hadConnectionRef.current = true;
+          retryDelay = 1000;
+          setConnectionStatus("connected");
+          void refreshNotifications();
+          void refreshUnreadCount();
+          if (isReconnect) {
+            setRealtimeReconnectVersion((version) => version + 1);
+          }
+          await consumeStream(response, controller.signal);
+        } catch (error) {
+          if (stopped || error.name === "AbortError") return;
+          setConnectionStatus("reconnecting");
+          if (hadConnectionRef.current) {
+            void refreshNotifications();
+            void refreshUnreadCount();
+            setRealtimeReconnectVersion((version) => version + 1);
+          }
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          retryDelay = Math.min(retryDelay * 2, 30000);
+        }
       }
-
-      setNotifications((prev) =>
-        prev.filter((notification) => {
-          const currentId =
-            notification?._id ||
-            notification?.id;
-
-          return (
-            currentId?.toString() !==
-            notificationId?.toString()
-          );
-        })
-      );
-
-      refreshUnreadCount();
-    });
-
-    // ------------------------------------------
-    // Disconnect
-    // ------------------------------------------
-
-    socket.on("disconnect", (reason) => {
-      console.log(
-        "🔌 Notification socket disconnected:",
-        reason
-      );
-    });
-
-    // ------------------------------------------
-    // Cleanup
-    // ------------------------------------------
-
-  }, [location.pathname, SOCKET_URL]);
-
-  useEffect(() => {
-    return () => {
-      socketRef.current?.disconnect();
-      socketRef.current = null;
-      socketUserIdRef.current = null;
     };
-  }, []);
 
-  // ==========================================
-  // Clear popup notification
-  // ==========================================
+    void runStream();
+    return () => {
+      stopped = true;
+      controller?.abort();
+      setConnectionStatus("disconnected");
+    };
+  }, [token, refreshNotifications, refreshUnreadCount]);
 
   const clearLatestNotification = useCallback(() => {
     setLatestNotification(null);
@@ -507,13 +381,15 @@ export const NotificationProvider = ({ children }) => {
         latestMessage,
         messageEvents,
         messageEventVersion,
-        socket,
+        userStatusEvents,
+        connectionStatus,
+        realtimeReconnectVersion,
         refreshUnreadCount,
         refreshNotifications,
         setUnreadCount,
         setNotifications,
         clearLatestNotification,
-        API_ORIGIN,
+        API_ORIGIN: API_URL.replace(/\/api\/?$/, ""),
       }}
     >
       {children}

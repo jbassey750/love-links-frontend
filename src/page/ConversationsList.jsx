@@ -55,7 +55,7 @@ const ConversationsList = () => {
 
   const { setSelectedChat } = useContext(ChatContext);
 
-  const { messageEvents, messageEventVersion } =
+  const { messageEvents, messageEventVersion, realtimeReconnectVersion } =
     useContext(NotificationContext);
 
   const [loading, setLoading] = useState(true);
@@ -64,7 +64,8 @@ const ConversationsList = () => {
   const fetchRequestIdRef = useRef(0);
   const mountedRef = useRef(true);
   const processedMessageIdsRef = useRef(new Set());
-  const lastMessageEventVersionRef = useRef(messageEventVersion);
+  const lastMessageEventVersionRef = useRef(0);
+  const latestMessageByChatRef = useRef(new Map());
 
   const [chatToDelete, setChatToDelete] = useState(null);
   const [toastMessage, setToastMessage] = useState("");
@@ -83,33 +84,85 @@ const ConversationsList = () => {
         : responseData.matches || responseData.data || [];
 
       const formattedConversations = rawMatches.map((match) => {
-        const matchUser = match.user || match.matchedUser || match;
+        const matchUser = match.user || match.matchedUser || match || {};
 
         return {
           id: match._id || match.id,
           chatId: match.chatId || match._id || match.id,
-          name: matchUser.fullName || matchUser.name || "User",
+          name: matchUser?.fullName || matchUser?.name || "User",
           lastMessage: match.lastMessage || "No messages yet",
           isLastMessageUser: Boolean(match.isLastMessageUser),
           timestamp:
             match.lastMessageAt || match.updatedAt || match.createdAt || "",
           unreadCount: Number(match.unreadCount) || 0,
           isRead: match.unreadCount > 0 ? false : true,
-          isOnline: matchUser.status === "online",
+          isOnline: matchUser?.status === "online",
           image:
-            matchUser.photo ||
-            matchUser.image ||
-            matchUser.avatar ||
-            matchUser.profilePicture ||
+            matchUser?.photo ||
+            matchUser?.image ||
+            matchUser?.avatar ||
+            matchUser?.profilePicture ||
             "",
           raw: match,
         };
       });
 
-      formattedConversations.sort(
+      const reconciledConversations = formattedConversations.map((conversation) => {
+        const latestMessage = latestMessageByChatRef.current.get(
+          conversation.chatId?.toString(),
+        );
+        if (
+          !latestMessage ||
+          new Date(latestMessage.createdAt || 0) <
+            new Date(conversation.timestamp || 0)
+        ) {
+          return conversation;
+        }
+
+        const latestMessagePreview =
+          latestMessage.message ||
+          {
+            image: "Photo",
+            audio: "Audio message",
+            video: "Video",
+          }[latestMessage.messageType] ||
+          "New message";
+        return {
+          ...conversation,
+          lastMessage: latestMessagePreview,
+          timestamp: latestMessage.createdAt || conversation.timestamp,
+          isLastMessageUser: false,
+        };
+      });
+
+      reconciledConversations.sort(
         (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
       );
-      setConversations(formattedConversations);
+      setConversations((current) =>
+        reconciledConversations.map((conversation) => {
+          const previous = current.find(
+            (item) =>
+              item.chatId?.toString() === conversation.chatId?.toString() ||
+              item.id?.toString() === conversation.id?.toString(),
+          );
+          if (
+            !previous ||
+            new Date(previous.timestamp || 0) <=
+              new Date(conversation.timestamp || 0)
+          ) {
+            return conversation;
+          }
+
+          return {
+            ...conversation,
+            lastMessage: previous.lastMessage,
+            isLastMessageUser: previous.isLastMessageUser,
+            timestamp: previous.timestamp,
+            unreadCount: previous.unreadCount,
+            isRead: previous.isRead,
+          };
+        }),
+      );
     } catch (err) {
       console.error("Failed to fetch matches from server:", err);
 
@@ -134,6 +187,12 @@ const ConversationsList = () => {
   }, [fetchMatches]);
 
   useEffect(() => {
+    if (realtimeReconnectVersion > 0) {
+      void Promise.resolve().then(fetchMatches);
+    }
+  }, [realtimeReconnectVersion, fetchMatches]);
+
+  useEffect(() => {
     for (const message of messageEvents) {
       if (message.eventVersion <= lastMessageEventVersionRef.current) continue;
       lastMessageEventVersionRef.current = message.eventVersion;
@@ -152,6 +211,15 @@ const ConversationsList = () => {
 
       if (!chatId) continue;
 
+      const timestamp = message.createdAt || new Date().toISOString();
+      const existingLatestMessage = latestMessageByChatRef.current.get(chatId);
+      if (
+        !existingLatestMessage ||
+        new Date(timestamp) >= new Date(existingLatestMessage.createdAt || 0)
+      ) {
+        latestMessageByChatRef.current.set(chatId, message);
+      }
+
       const existingConversation = conversations.find(
         (chat) =>
           chat.chatId?.toString() === chatId ||
@@ -163,7 +231,6 @@ const ConversationsList = () => {
         continue;
       }
 
-      const timestamp = message.createdAt || new Date().toISOString();
       const messagePreview =
         message.message ||
         {
@@ -185,21 +252,36 @@ const ConversationsList = () => {
           if (index === -1) return prev;
 
           const current = prev[index];
+          const timestampValue = new Date(timestamp).getTime();
+          const currentTimestampValue = new Date(current.timestamp || 0).getTime();
+          const isNewerMessage =
+            timestampValue > currentTimestampValue ||
+            (timestampValue === currentTimestampValue &&
+              messagePreview !== current.lastMessage);
           const updated = {
             ...current,
-            lastMessage: messagePreview,
-            isLastMessageUser: false,
             isRead: false,
             unreadCount: Number(current.unreadCount || 0) + 1,
-            timestamp,
+            ...(isNewerMessage
+              ? {
+                  lastMessage: messagePreview,
+                  isLastMessageUser: false,
+                  timestamp,
+                }
+              : {}),
           };
 
           const next = [...prev];
-          next.splice(index, 1);
-          next.push(updated);
-          next.sort(
-            (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
-          );
+          if (isNewerMessage) {
+            next.splice(index, 1);
+            next.push(updated);
+            next.sort(
+              (a, b) =>
+                new Date(b.timestamp || 0) - new Date(a.timestamp || 0),
+            );
+          } else {
+            next[index] = updated;
+          }
           return next;
         });
       });

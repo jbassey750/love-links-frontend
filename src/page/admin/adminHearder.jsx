@@ -77,6 +77,7 @@ const AdminNavbar = ({
     } finally {
       // Always remove the local token
       localStorage.removeItem("token");
+      window.dispatchEvent(new Event("auth-token-changed"));
 
       // Close mobile navigation
       setIsNavOpen(false);

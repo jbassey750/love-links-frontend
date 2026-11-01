@@ -11,25 +11,24 @@ const Footer = () => {
     return (
       location.pathname === path ||
       location.pathname.startsWith(`${path}/`) ||
-      (path === "/conversations" && location.pathname.startsWith("/chat/"))
+      (path === "/conversations" &&
+        location.pathname.startsWith("/chat/"))
     );
   };
 
   const navItems = [
     {
-      label: "People",
-      path: "/more/people",
+      label: "Home",
+      path: "/discover",
       icon: "bi-people",
-      active: isActive("/more/people"),
+      active: isActive("/discover"),
     },
-
     {
       label: "Chat",
       path: "/conversations",
       icon: "bi-chat-dots",
       active: isActive("/conversations"),
     },
-
     {
       label: "Notifications",
       path: "/notifications",
@@ -37,7 +36,6 @@ const Footer = () => {
       active: isActive("/notifications"),
       badge: hasUnreadNotifications ? unreadCount : 0,
     },
-
     {
       label: "Profile",
       path: "/profile/me",
@@ -48,24 +46,40 @@ const Footer = () => {
 
   return (
     <footer
-      className="bg-white border-top py-2 px-4 shadow-sm position-fixed bottom-0 start-0 end-0"
-      style={{ zIndex: 1030 }}
+      className="position-fixed bottom-0 start-50 translate-middle-x"
+      style={{
+        zIndex: 1030,
+        width: "calc(100% - 32px)",
+        maxWidth: "600px",
+        paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+      }}
     >
       <div
-        className="d-flex justify-content-around align-items-center mx-auto"
-        style={{ maxWidth: "600px" }}
+        className="bg-white shadow-lg d-flex justify-content-around align-items-center"
+        style={{
+          borderRadius: "50px",
+          padding: "10px 12px",
+          border: "1px solid rgba(92, 29, 36, 0.10)",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.10)",
+        }}
       >
         {navItems.map((item) => (
           <Link
             key={item.label}
             to={item.path}
             className="d-flex flex-column align-items-center gap-1 text-decoration-none"
-            style={{ fontSize: "0.7rem", minWidth: "55px" }}
+            style={{
+              fontSize: "0.7rem",
+              minWidth: "55px",
+              flex: "1",
+              color: item.active ? "#5c1d24" : "#6c757d",
+            }}
             title={item.label}
             aria-label={item.label}
+            aria-current={item.active ? "page" : undefined}
           >
             <span
-              className="rounded-circle d-flex align-items-center justify-content-center position-relative shadow-sm"
+              className="rounded-circle d-flex align-items-center justify-content-center position-relative"
               style={{
                 width: "36px",
                 height: "36px",
@@ -86,10 +100,13 @@ const Footer = () => {
                     padding: "0 6px",
                     fontSize: "0.65rem",
                     backgroundColor: "#d6333f",
+                    fontWeight: "600",
                   }}
                 >
                   {item.badge > 99 ? "99+" : item.badge}
-                  <span className="visually-hidden">Unread notifications</span>
+                  <span className="visually-hidden">
+                    Unread notifications
+                  </span>
                 </span>
               )}
             </span>

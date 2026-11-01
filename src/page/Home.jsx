@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import ContentLoader from "../components/ContentLoader";
 import api from "../api/axios";
@@ -11,6 +12,20 @@ const Discover = ({ location = "Amsterdam" }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [matchedUser, setMatchedUser] = useState(null);
   const [toastMessage, setToastMessage] = useState(null); // Dynamic toast message state
+
+  // Swipe gesture state
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
+  const swipePointerId = useRef(null);
+  const swipeDirection = useRef(null);
+  const swipeLocked = useRef(false);
+
+  const SWIPE_THRESHOLD = 100;
+  const SWIPE_ANIMATION_DURATION = 180;
 
   // Get profile image URL
   const getProfileImageUrl = (user) => {
@@ -82,7 +97,7 @@ const Discover = ({ location = "Amsterdam" }) => {
         distance: user.location ? `${user.location}` : "Nearby",
         badge: user.badge || "Love & Friends",
         bio: user.bio || "No bio provided yet.",
-        tags: user.interests || [],
+        tags: Array.isArray(user.interests) ? user.interests : (user.interests ? [user.interests] : []),
         image: getProfileImageUrl(user),
         gender: user.gender || "",
       }));
@@ -192,6 +207,131 @@ const Discover = ({ location = "Amsterdam" }) => {
     return <ContentLoader message="Finding profiles near you" />;
   }
 
+  // Start tracking a swipe gesture
+  const handleSwipeStart = (event) => {
+    // Ignore right-clicks and interactions with buttons or controls.
+    if (
+      event.button !== 0 ||
+      event.target.closest(
+        "button, a, input, textarea, select, [role='dialog']",
+      )
+    ) {
+      return;
+    }
+
+    if (actionLoading || isExiting || swipeLocked.current) {
+      return;
+    }
+
+    swipePointerId.current = event.pointerId;
+    swipeStartX.current = event.clientX;
+    swipeStartY.current = event.clientY;
+    swipeDirection.current = null;
+
+    setIsDragging(true);
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Continue if pointer capture is unavailable.
+    }
+  };
+
+  // Move the profile card with the pointer
+  const handleSwipeMove = (event) => {
+    if (
+      !isDragging ||
+      swipePointerId.current !== event.pointerId ||
+      swipeLocked.current
+    ) {
+      return;
+    }
+
+    const deltaX = event.clientX - swipeStartX.current;
+    const deltaY = event.clientY - swipeStartY.current;
+
+    // Allow normal vertical scrolling rather than treating it as a swipe.
+    if (
+      swipeDirection.current === null &&
+      Math.abs(deltaY) > Math.abs(deltaX) &&
+      Math.abs(deltaY) > 10
+    ) {
+      swipeDirection.current = "vertical";
+      setDragX(0);
+      return;
+    }
+
+    if (swipeDirection.current === "vertical") {
+      return;
+    }
+
+    if (Math.abs(deltaX) > 10) {
+      swipeDirection.current = "horizontal";
+    }
+
+    setDragX(deltaX);
+  };
+
+  // Finish the swipe and run the appropriate existing action
+  const handleSwipeEnd = (event) => {
+    if (!isDragging || swipePointerId.current !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - swipeStartX.current;
+
+    setIsDragging(false);
+    swipePointerId.current = null;
+
+    if (
+      swipeDirection.current !== "horizontal" ||
+      Math.abs(deltaX) < SWIPE_THRESHOLD ||
+      actionLoading ||
+      swipeLocked.current
+    ) {
+      setDragX(0);
+      swipeDirection.current = null;
+      return;
+    }
+
+    // Prevent multiple actions during the swipe animation.
+    swipeLocked.current = true;
+    setIsExiting(true);
+
+    const direction = deltaX > 0 ? 1 : -1;
+
+    // Animate the card off the screen.
+    setDragX(direction * Math.max(window.innerWidth, 600));
+
+    window.setTimeout(() => {
+      setDragX(0);
+      setIsExiting(false);
+      swipeDirection.current = null;
+      swipeLocked.current = false;
+
+      if (direction > 0) {
+        // Swipe right: use your existing Like handler.
+        handleLike();
+      } else {
+        // Swipe left: use your existing Dislike handler.
+        handleDislike();
+      }
+    }, SWIPE_ANIMATION_DURATION);
+  };
+
+  // Reset the card if the gesture is interrupted.
+  const handleSwipeCancel = (event) => {
+    if (swipePointerId.current !== event.pointerId) {
+      return;
+    }
+
+    swipePointerId.current = null;
+    swipeDirection.current = null;
+
+    setIsDragging(false);
+    setDragX(0);
+  };
+
   return (
     <div
       className="d-flex flex-column"
@@ -300,6 +440,10 @@ const Discover = ({ location = "Amsterdam" }) => {
             {/* Banner Card */}
             <div
               className="card border-0 rounded-0 rounded-md-4 overflow-hidden text-white shadow-sm position-relative mb-0 mb-md-3 flex-grow-1"
+              onPointerDown={handleSwipeStart}
+              onPointerMove={handleSwipeMove}
+              onPointerUp={handleSwipeEnd}
+              onPointerCancel={handleSwipeCancel}
               style={{
                 minHeight: "calc(100vh - 136px)",
                 backgroundImage: currentProfile.image
@@ -309,6 +453,16 @@ const Discover = ({ location = "Amsterdam" }) => {
                 backgroundRepeat: "no-repeat",
                 backgroundSize: "cover",
                 backgroundColor: getFallbackAvatar(currentProfile).background,
+
+                // Swipe interaction
+                transform: `translateX(${dragX}px) rotate(${dragX * 0.04}deg)`,
+                transition: isDragging
+                  ? "none"
+                  : `transform ${SWIPE_ANIMATION_DURATION}ms ease-out`,
+                touchAction: "pan-y",
+                cursor: isDragging ? "grabbing" : "grab",
+                willChange: "transform",
+                userSelect: "none",
               }}
             >
               {currentProfile.image && (
@@ -406,7 +560,7 @@ const Discover = ({ location = "Amsterdam" }) => {
                 </p>
 
                 <div className="d-flex flex-wrap gap-2">
-                  {currentProfile.tags.map((tag, idx) => (
+                  {(currentProfile.tags || []).map((tag, idx) => (
                     <span
                       key={idx}
                       className="badge bg-white bg-opacity-10 rounded-pill px-3 py-1.5 fw-normal text-white border border-light border-opacity-10"
@@ -429,7 +583,7 @@ const Discover = ({ location = "Amsterdam" }) => {
             >
               <button
                 onClick={handleDislike}
-                disabled={actionLoading}
+                disabled={actionLoading || isExiting}
                 className="btn bg-white rounded-circle shadow border d-flex align-items-center justify-content-center"
                 style={{ width: "44px", height: "44px" }}
               >
@@ -437,7 +591,7 @@ const Discover = ({ location = "Amsterdam" }) => {
               </button>
 
               <button
-                disabled={actionLoading}
+               disabled={actionLoading || isExiting}
                 className="btn bg-white rounded-circle shadow border d-flex align-items-center justify-content-center"
                 style={{ width: "38px", height: "38px" }}
               >
@@ -446,7 +600,7 @@ const Discover = ({ location = "Amsterdam" }) => {
 
               <button
                 onClick={handleLike}
-                disabled={actionLoading}
+                disabled={actionLoading || isExiting}
                 className="btn rounded-circle shadow d-flex align-items-center justify-content-center"
                 style={{
                   width: "56px",

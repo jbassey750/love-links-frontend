@@ -93,6 +93,7 @@ const OTPVerification = () => {
 
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
+        window.dispatchEvent(new Event("auth-token-changed"));
       }
 
       setSuccessMessage("Verification successful!");

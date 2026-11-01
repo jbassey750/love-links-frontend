@@ -34,6 +34,7 @@ const Login = () => {
 
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
+        window.dispatchEvent(new Event("auth-token-changed"));
       }
 
       try {
@@ -50,6 +51,7 @@ const Login = () => {
       // Moderators must use the dedicated moderator login
       if (user?.role === "moderator") {
         localStorage.removeItem("token");
+        window.dispatchEvent(new Event("auth-token-changed"));
         setError("Moderators must use the moderator login portal.");
         return;
       }
