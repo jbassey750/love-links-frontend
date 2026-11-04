@@ -28,6 +28,16 @@ const getUserIdFromToken = () => {
   }
 };
 
+const compareMessagesChronologically = (first, second) => {
+  const firstTime = new Date(first.createdAt || 0).getTime();
+  const secondTime = new Date(second.createdAt || 0).getTime();
+  if (firstTime !== secondTime) return firstTime - secondTime;
+
+  return String(first.id || first._id || "").localeCompare(
+    String(second.id || second._id || ""),
+  );
+};
+
 const Chat = (props) => {
   const { chatId: routeChatId } = useParams();
   const context = useContext(ChatContext);
@@ -337,6 +347,7 @@ const Chat = (props) => {
               image: await loadMessageImage(msg, () => isMounted),
             })),
           );
+          messagesWithImages.sort(compareMessagesChronologically);
 
           if (!isMounted) return;
           rawMessages.forEach((msg) => {
@@ -423,9 +434,7 @@ const Chat = (props) => {
           current.forEach((message) => {
             if (!merged.has(message.id)) merged.set(message.id, message);
           });
-          return [...merged.values()].sort(
-            (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
-          );
+          return [...merged.values()].sort(compareMessagesChronologically);
         });
 
         await Promise.all(
@@ -525,7 +534,7 @@ const Chat = (props) => {
           return prev;
         }
 
-        return [...prev, formattedMsg];
+        return [...prev, formattedMsg].sort(compareMessagesChronologically);
       });
       if (normalizedMessageId) {
         try {
@@ -695,6 +704,7 @@ const Chat = (props) => {
         isMine: true,
         text: returnedMessage.message || returnedMessage.text || messageToSend,
         image: messageImage,
+        createdAt: returnedMessage.createdAt || new Date().toISOString(),
         time: returnedMessage.createdAt
           ? new Date(returnedMessage.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
@@ -711,7 +721,7 @@ const Chat = (props) => {
           return prev;
         }
 
-        return [...prev, formattedMsg];
+        return [...prev, formattedMsg].sort(compareMessagesChronologically);
       });
 
       // Clear the input only after the server

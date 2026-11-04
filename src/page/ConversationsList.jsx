@@ -50,6 +50,16 @@ const formatConversationTime = (timestamp) => {
   });
 };
 
+const isMessageNewer = (messageTime, messageId, currentTime, currentId) => {
+  const messageTimestamp = new Date(messageTime || 0).getTime();
+  const currentTimestamp = new Date(currentTime || 0).getTime();
+  if (messageTimestamp !== currentTimestamp) {
+    return messageTimestamp > currentTimestamp;
+  }
+
+  return String(messageId || "").localeCompare(String(currentId || "")) > 0;
+};
+
 const ConversationsList = () => {
   const navigate = useNavigate();
 
@@ -94,6 +104,7 @@ const ConversationsList = () => {
           isLastMessageUser: Boolean(match.isLastMessageUser),
           timestamp:
             match.lastMessageAt || match.updatedAt || match.createdAt || "",
+          lastMessageId: match.lastMessageId || null,
           unreadCount: Number(match.unreadCount) || 0,
           isRead: match.unreadCount > 0 ? false : true,
           isOnline: matchUser?.status === "online",
@@ -113,8 +124,12 @@ const ConversationsList = () => {
         );
         if (
           !latestMessage ||
-          new Date(latestMessage.createdAt || 0) <
-            new Date(conversation.timestamp || 0)
+          !isMessageNewer(
+            latestMessage.createdAt,
+            latestMessage._id || latestMessage.id,
+            conversation.timestamp,
+            conversation.lastMessageId,
+          )
         ) {
           return conversation;
         }
@@ -131,6 +146,7 @@ const ConversationsList = () => {
           ...conversation,
           lastMessage: latestMessagePreview,
           timestamp: latestMessage.createdAt || conversation.timestamp,
+          lastMessageId: latestMessage._id || latestMessage.id,
           isLastMessageUser: false,
         };
       });
@@ -147,8 +163,12 @@ const ConversationsList = () => {
           );
           if (
             !previous ||
-            new Date(previous.timestamp || 0) <=
-              new Date(conversation.timestamp || 0)
+            !isMessageNewer(
+              previous.timestamp,
+              previous.lastMessageId,
+              conversation.timestamp,
+              conversation.lastMessageId,
+            )
           ) {
             return conversation;
           }
@@ -215,7 +235,12 @@ const ConversationsList = () => {
       const existingLatestMessage = latestMessageByChatRef.current.get(chatId);
       if (
         !existingLatestMessage ||
-        new Date(timestamp) >= new Date(existingLatestMessage.createdAt || 0)
+        isMessageNewer(
+          timestamp,
+          messageId,
+          existingLatestMessage.createdAt,
+          existingLatestMessage._id || existingLatestMessage.id,
+        )
       ) {
         latestMessageByChatRef.current.set(chatId, message);
       }
@@ -252,12 +277,12 @@ const ConversationsList = () => {
           if (index === -1) return prev;
 
           const current = prev[index];
-          const timestampValue = new Date(timestamp).getTime();
-          const currentTimestampValue = new Date(current.timestamp || 0).getTime();
-          const isNewerMessage =
-            timestampValue > currentTimestampValue ||
-            (timestampValue === currentTimestampValue &&
-              messagePreview !== current.lastMessage);
+          const isNewerMessage = isMessageNewer(
+            timestamp,
+            normalizedMessageId,
+            current.timestamp,
+            current.lastMessageId,
+          );
           const updated = {
             ...current,
             isRead: false,
@@ -267,6 +292,7 @@ const ConversationsList = () => {
                   lastMessage: messagePreview,
                   isLastMessageUser: false,
                   timestamp,
+                  lastMessageId: normalizedMessageId,
                 }
               : {}),
           };
