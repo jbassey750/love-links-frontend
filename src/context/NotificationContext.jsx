@@ -7,6 +7,7 @@ export const NotificationContext = createContext({
   latestMessage: null,
   messageEvents: [],
   messageEventVersion: 0,
+  messageSeenEvents: [],
   userStatusEvents: [],
   connectionStatus: "disconnected",
   realtimeReconnectVersion: 0,

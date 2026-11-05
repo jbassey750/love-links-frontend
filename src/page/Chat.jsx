@@ -43,6 +43,7 @@ const Chat = (props) => {
   const context = useContext(ChatContext);
   const {
     messageEvents,
+    messageSeenEvents,
     userStatusEvents,
     realtimeReconnectVersion,
   } = useContext(NotificationContext);
@@ -145,6 +146,7 @@ const Chat = (props) => {
   const textareaRef = useRef(null);
   const mediaMenuRef = useRef(null);
   const receivedMessageIdsRef = useRef(new Set());
+  const markedSeenMessageIdsRef = useRef(new Set());
   const messageImageUrlsRef = useRef(new Set());
   const activeChatIdRef = useRef(null);
 
@@ -157,6 +159,30 @@ const Chat = (props) => {
   // ---------------------------------------------------------
   const getCurrentUserId = () => {
     return getUserIdFromToken();
+  };
+
+  const markMessageSeen = async (messageId) => {
+    const id = messageId?.toString();
+    if (!id || markedSeenMessageIdsRef.current.has(id)) return;
+
+    markedSeenMessageIdsRef.current.add(id);
+    try {
+      const response = await axios.patch(`/messages/${id}/seen`);
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message || "The server did not mark the message as seen.",
+        );
+      }
+
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, seen: true } : item,
+        ),
+      );
+    } catch (seenError) {
+      markedSeenMessageIdsRef.current.delete(id);
+      console.error("Failed to mark incoming message as seen:", seenError);
+    }
   };
 
   // ---------------------------------------------------------
@@ -181,6 +207,7 @@ const Chat = (props) => {
 
       image: msg.image || msg.mediaUrl || null,
       createdAt: msg.createdAt || null,
+      seen: Boolean(msg.seen),
 
       time: msg.createdAt
         ? new Date(msg.createdAt).toLocaleTimeString([], {
@@ -366,16 +393,9 @@ const Chat = (props) => {
           });
 
           void Promise.all(
-            unseenIncomingMessages.map(async (msg) => {
-              try {
-                await axios.patch(`/messages/${msg._id || msg.id}/seen`);
-              } catch (seenError) {
-                console.error(
-                  "Failed to mark incoming message as seen:",
-                  seenError,
-                );
-              }
-            }),
+            unseenIncomingMessages.map((msg) =>
+              markMessageSeen(msg._id || msg.id),
+            ),
           );
         }
       } catch (err) {
@@ -446,13 +466,7 @@ const Chat = (props) => {
                 message.sender?.toString?.();
               return senderId !== currentUserId && !message.seen;
             })
-            .map(async (message) => {
-              try {
-                await axios.patch(`/messages/${message._id || message.id}/seen`);
-              } catch (seenError) {
-                console.error("Failed to mark recovered message as seen:", seenError);
-              }
-            }),
+            .map((message) => markMessageSeen(message._id || message.id)),
         );
       } catch (recoveryError) {
         console.error("Failed to recover messages after reconnect:", recoveryError);
@@ -537,14 +551,7 @@ const Chat = (props) => {
         return [...prev, formattedMsg].sort(compareMessagesChronologically);
       });
       if (normalizedMessageId) {
-        try {
-          await axios.patch(`/messages/${normalizedMessageId}/seen`);
-        } catch (seenError) {
-          console.error(
-            "Failed to mark incoming message as seen:",
-            seenError,
-          );
-        }
+        await markMessageSeen(normalizedMessageId);
       }
     };
 
@@ -588,6 +595,33 @@ const Chat = (props) => {
       void handleNewMessage(event);
     }
 
+    const handleMessageSeen = (event) => {
+      const eventChatId = event.chatId?.toString?.();
+      const currentUserId = String(
+        activeChat?.currentUserId ||
+          currentUser?.id ||
+          currentUser?._id ||
+          getCurrentUserId() ||
+          "",
+      );
+      if (eventChatId !== activeChatId || !event.messageId || !currentUserId) {
+        return;
+      }
+
+      if (event.seenBy?.toString?.() === currentUserId) return;
+
+      const messageId = event.messageId.toString();
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === messageId && item.isMine
+            ? { ...item, seen: true }
+            : item,
+        ),
+      );
+    };
+
+    messageSeenEvents.forEach(handleMessageSeen);
+
     for (const event of userStatusEvents) {
       handleUserStatusChanged(event);
     }
@@ -595,6 +629,7 @@ const Chat = (props) => {
   }, [
     currentChatId,
     messageEvents,
+    messageSeenEvents,
     userStatusEvents,
     currentUser,
     activeChat?.currentUserId,
@@ -705,6 +740,7 @@ const Chat = (props) => {
         text: returnedMessage.message || returnedMessage.text || messageToSend,
         image: messageImage,
         createdAt: returnedMessage.createdAt || new Date().toISOString(),
+        seen: Boolean(returnedMessage.seen),
         time: returnedMessage.createdAt
           ? new Date(returnedMessage.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
@@ -1394,11 +1430,14 @@ const Chat = (props) => {
 
                         {msg.isMine && (
                           <i
-                            className="bi bi-check2"
+                            className={`bi ${
+                              msg.seen ? "bi-check2-all" : "bi-check2"
+                            }`}
                             style={{
-                              color: "#8c7777",
+                              color: msg.seen ? "#0d6efd" : "#8c7778",
                               fontSize: "0.65rem",
                             }}
+                            aria-label={msg.seen ? "Seen" : "Sent"}
                           />
                         )}
                       </div>

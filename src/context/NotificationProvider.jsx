@@ -4,7 +4,7 @@ import { NotificationContext } from "./NotificationContext";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-).replace(/\/$/, "");
+).trim().replace(/\/$/, "");
 
 const getTokenUserId = (token) => {
   if (!token) return null;
@@ -33,6 +33,7 @@ export const NotificationProvider = ({ children }) => {
   const [latestMessage, setLatestMessage] = useState(null);
   const [messageEvents, setMessageEvents] = useState([]);
   const [messageEventVersion, setMessageEventVersion] = useState(0);
+  const [messageSeenEvents, setMessageSeenEvents] = useState([]);
   const [userStatusEvents, setUserStatusEvents] = useState([]);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [realtimeReconnectVersion, setRealtimeReconnectVersion] = useState(0);
@@ -41,6 +42,7 @@ export const NotificationProvider = ({ children }) => {
   const lastEventIdRef = useRef(null);
   const notificationIdsRef = useRef(new Set());
   const messageIdsRef = useRef(new Set());
+  const seenMessageIdsRef = useRef(new Set());
   const notificationEventVersionRef = useRef(0);
   const messageEventVersionRef = useRef(0);
   const userStatusEventVersionRef = useRef(0);
@@ -134,6 +136,7 @@ export const NotificationProvider = ({ children }) => {
       lastEventIdRef.current = null;
       notificationIdsRef.current.clear();
       messageIdsRef.current.clear();
+      seenMessageIdsRef.current.clear();
       notificationEventVersionRef.current += 1;
       messageEventVersionRef.current = 0;
       userStatusEventVersionRef.current = 0;
@@ -144,6 +147,7 @@ export const NotificationProvider = ({ children }) => {
       setLatestMessage(null);
       setMessageEvents([]);
       setMessageEventVersion(0);
+      setMessageSeenEvents([]);
       setUserStatusEvents([]);
     }
 
@@ -258,6 +262,31 @@ export const NotificationProvider = ({ children }) => {
         setLatestMessage(normalized);
         setMessageEventVersion(normalized.eventVersion);
         setMessageEvents((current) => [...current, normalized].slice(-100));
+        return;
+      }
+
+      if (event.type === "message-seen") {
+        const messageId = event.data?.messageId?.toString?.();
+        if (!messageId || seenMessageIdsRef.current.has(messageId)) return;
+
+        seenMessageIdsRef.current.add(messageId);
+        if (seenMessageIdsRef.current.size > 500) {
+          seenMessageIdsRef.current.delete(
+            seenMessageIdsRef.current.values().next().value,
+          );
+        }
+
+        setMessageSeenEvents((current) =>
+          [
+            ...current,
+            {
+              ...event.data,
+              messageId,
+              seenByCurrentUser:
+                event.data?.seenBy?.toString?.() === normalizedUserId,
+            },
+          ].slice(-100),
+        );
         return;
       }
 
@@ -381,6 +410,7 @@ export const NotificationProvider = ({ children }) => {
         latestMessage,
         messageEvents,
         messageEventVersion,
+        messageSeenEvents,
         userStatusEvents,
         connectionStatus,
         realtimeReconnectVersion,

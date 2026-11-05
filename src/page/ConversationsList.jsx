@@ -65,8 +65,12 @@ const ConversationsList = () => {
 
   const { setSelectedChat } = useContext(ChatContext);
 
-  const { messageEvents, messageEventVersion, realtimeReconnectVersion } =
-    useContext(NotificationContext);
+  const {
+    messageEvents,
+    messageEventVersion,
+    messageSeenEvents,
+    realtimeReconnectVersion,
+  } = useContext(NotificationContext);
 
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
@@ -74,6 +78,7 @@ const ConversationsList = () => {
   const fetchRequestIdRef = useRef(0);
   const mountedRef = useRef(true);
   const processedMessageIdsRef = useRef(new Set());
+  const processedSeenMessageIdsRef = useRef(new Set());
   const lastMessageEventVersionRef = useRef(0);
   const latestMessageByChatRef = useRef(new Map());
 
@@ -313,6 +318,46 @@ const ConversationsList = () => {
       });
     }
   }, [messageEvents, messageEventVersion, conversations, fetchMatches]);
+
+  useEffect(() => {
+    for (const event of messageSeenEvents) {
+      const messageId = event.messageId?.toString();
+      if (
+        !event.seenByCurrentUser ||
+        !messageId ||
+        processedSeenMessageIdsRef.current.has(messageId)
+      ) {
+        continue;
+      }
+
+      processedSeenMessageIdsRef.current.add(messageId);
+      const chatId = event.chatId?.toString?.();
+      if (!chatId) continue;
+
+      void Promise.resolve().then(() => {
+        setConversations((current) =>
+          current.map((conversation) => {
+            if (
+              conversation.chatId?.toString() !== chatId &&
+              conversation.id?.toString() !== chatId
+            ) {
+              return conversation;
+            }
+
+            const unreadCount = Math.max(
+              0,
+              Number(conversation.unreadCount || 0) - 1,
+            );
+            return {
+              ...conversation,
+              unreadCount,
+              isRead: unreadCount === 0,
+            };
+          }),
+        );
+      });
+    }
+  }, [messageSeenEvents]);
 
   // Auto-dismiss success toast after 3 seconds
   useEffect(() => {
